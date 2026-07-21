@@ -1,0 +1,76 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hanbotorder}
+      POSTGRES_USER: ${POSTGRES_USER:-hanbotorder}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hanbotorder} -d ${POSTGRES_DB:-hanbotorder}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-hanbotorder}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hanbotorder}?schema=public
+      LOG_DIR: /app/logs
+    depends_on:
+      postgres: { condition: service_healthy }
+    volumes:
+      - api_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/api/v1/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    ports: ["3001:3001"]
+    networks: [backend, frontend]
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_healthy }
+    ports: ["3000:3000"]
+    networks: [frontend]
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.admin
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        API_INTERNAL_URL: http://api:3001/api/v1
+    environment:
+      API_INTERNAL_URL: http://api:3001/api/v1
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_healthy }
+    ports: ["3002:3002"]
+    networks: [frontend]
+
+volumes:
+  postgres_data:
+  api_logs:
+
+networks:
+  backend: { internal: true }
+  frontend:

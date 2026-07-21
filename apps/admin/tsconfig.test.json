@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "noEmit": false,
+    "outDir": "../../.tmp/admin-tests",
+    "rootDir": "./src",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "plugins": []
+  },
+  "include": ["src/lib/admin-navigation.ts", "src/lib/frontend.spec.ts"]
+}

@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/dist-test
+.git
+.env
+.env.*
+!.env.example
+.tmp
+.corepack
+.pnpm-store
+*.log
+logs
