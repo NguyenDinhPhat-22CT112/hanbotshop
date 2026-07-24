@@ -1,0 +1,530 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Address {
+  id          String   @id @default(cuid())
+  userId      String
+  recipient   String
+  phone       String
+  line1       String
+  line2       String?
+  city        String
+  province    String?
+  postalCode  String?
+  countryCode String   @default("VN")
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id           String      @id @default(cuid())
+  actorId      String?
+  action       AuditAction
+  resourceType String
+  resourceId   String
+  before       Json?
+  after        Json?
+  metadata     Json?
+  createdAt    DateTime    @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([resourceType, resourceId, createdAt])
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+}
+
+model CartItem {
+  id             String          @id @default(cuid())
+  cartId         String
+  productId      String
+  variantId      String?
+  quantity       Int
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  cart           Cart            @relation(fields: [cartId], references: [id])
+  product        Product         @relation(fields: [productId], references: [id])
+  variant        ProductVariant? @relation(fields: [variantId], references: [id])
+}
+
+model Category {
+  id             String         @id @default(cuid())
+  name           String
+  slug           String         @unique
+  parentId       String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  status         CategoryStatus @default(ACTIVE)
+  parent         Category?      @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children       Category[]     @relation("CategoryToCategory")
+  products       Product[]
+}
+
+model File {
+  id              String           @id @default(cuid())
+  ownerId         String?
+  originalName    String
+  mimeType        String
+  size            Int
+  storageProvider String
+  storageKey      String
+  url             String?
+  isPublic        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  uploadStatus    FileUploadStatus @default(PENDING)
+  confirmedAt     DateTime?
+  user            User?            @relation(fields: [ownerId], references: [id])
+  productImages   ProductImage[]
+}
+
+model IdempotencyRecord {
+  id             String   @id @default(cuid())
+  key            String
+  scope          String
+  method         String
+  path           String
+  actorId        String?
+  requestHash    String
+  responseStatus Int?
+  responseBody   Json?
+  createdAt      DateTime @default(now())
+  expiresAt      DateTime
+
+  @@unique([scope, key])
+  @@index([expiresAt])
+}
+
+model InternalNote {
+  id              String         @id @default(cuid())
+  productionJobId String?
+  body            String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  productionJob   ProductionJob? @relation(fields: [productionJobId], references: [id])
+}
+
+model Order {
+  id              String          @id @default(cuid())
+  orderNumber     String          @unique
+  userId          String
+  status          OrderStatus     @default(PENDING_CONFIRMATION)
+  paymentStatus   PaymentStatus   @default(UNPAID)
+  subtotal        Decimal         @default(0) @db.Decimal(12, 2)
+  shippingFee     Decimal         @default(0) @db.Decimal(12, 2)
+  total           Decimal         @default(0) @db.Decimal(12, 2)
+  depositRequired Decimal         @default(0) @db.Decimal(12, 2)
+  paidAmount      Decimal         @default(0) @db.Decimal(12, 2)
+  recipientName   String?
+  recipientPhone  String?
+  shippingAddress Json?
+  trackingNumber  String?
+  trackingCarrier String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  user            User            @relation(fields: [userId], references: [id])
+  events          OrderEvent[]
+  items           OrderItem[]
+  notes           OrderNote[]
+  payments        Payment[]
+  productionJobs  ProductionJob[]
+  emailOutbox     EmailOutbox[]
+}
+
+model OrderEvent {
+  id        String         @id @default(cuid())
+  orderId   String
+  actorId   String?
+  type      OrderEventType
+  payload   Json?
+  createdAt DateTime       @default(now())
+  order     Order          @relation(fields: [orderId], references: [id])
+
+  @@index([orderId, createdAt])
+}
+
+model OrderItem {
+  id                 String   @id @default(cuid())
+  orderId            String
+  productId          String?
+  productSnapshot    Json
+  variantSnapshot    Json?
+  quantity           Int
+  unitPrice          Decimal  @db.Decimal(12, 2)
+  totalPrice         Decimal  @db.Decimal(12, 2)
+  depositAmount      Decimal  @default(0) @db.Decimal(12, 2)
+  inventoryCommitted Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  order              Order    @relation(fields: [orderId], references: [id])
+  product            Product? @relation(fields: [productId], references: [id])
+}
+
+model OrderNote {
+  id        String        @id @default(cuid())
+  orderId   String
+  actorId   String?
+  type      OrderNoteType @default(GENERAL)
+  body      String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  order     Order         @relation(fields: [orderId], references: [id])
+
+  @@index([orderId, createdAt])
+}
+
+model Payment {
+  id                String         @id @default(cuid())
+  orderId           String
+  provider          String
+  providerReference String?
+  amount            Decimal        @db.Decimal(12, 2)
+  status            PaymentStatus  @default(UNPAID)
+  payload           Json?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  order             Order          @relation(fields: [orderId], references: [id])
+  events            PaymentEvent[]
+}
+
+model PaymentEvent {
+  id              String           @id @default(cuid())
+  paymentId       String
+  type            PaymentEventType
+  payload         Json?
+  createdAt       DateTime         @default(now())
+  providerEventId String?          @unique
+  payment         Payment          @relation(fields: [paymentId], references: [id])
+}
+
+model Product {
+  id                 String              @id @default(cuid())
+  categoryId         String?
+  name               String
+  slug               String              @unique
+  description        String?
+  studio             String?
+  status             ProductStatus       @default(DRAFT)
+  availability       ProductAvailability @default(PRE_ORDER)
+  basePrice          Decimal?            @db.Decimal(12, 2)
+  compareAtPrice     Decimal?            @db.Decimal(12, 2)
+  preorderOpenAt     DateTime?
+  preorderCloseAt    DateTime?
+  estimatedReadyAt   DateTime?
+  paymentRequirement PaymentRequirement  @default(FULL)
+  depositPercent     Int                 @default(100)
+  inventoryQuantity  Int                 @default(0)
+  trackInventory     Boolean             @default(false)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime             @updatedAt
+  cartItems          CartItem[]
+  orderItems         OrderItem[]
+  category           Category?           @relation(fields: [categoryId], references: [id])
+  images             ProductImage[]
+  tags               ProductTag[]
+  variants           ProductVariant[]
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  fileId    String?
+  url       String
+  altText   String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  file      File?    @relation(fields: [fileId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+}
+
+model ProductTag {
+  productId String
+  tagId     String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+}
+
+model ProductVariant {
+  id                String     @id @default(cuid())
+  productId         String
+  sku               String?    @unique
+  name              String
+  options           Json?
+  price             Decimal?   @db.Decimal(12, 2)
+  isActive          Boolean    @default(true)
+  inventoryQuantity Int        @default(0)
+  trackInventory    Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  cartItems         CartItem[]
+  product           Product    @relation(fields: [productId], references: [id])
+}
+
+model ProductionEvent {
+  id              String           @id @default(cuid())
+  productionJobId String
+  status          ProductionStatus
+  note            String?
+  createdAt       DateTime         @default(now())
+  productionJob   ProductionJob    @relation(fields: [productionJobId], references: [id])
+}
+
+model ProductionJob {
+  id              String             @id @default(cuid())
+  orderId         String?
+  title           String
+  status          ProductionStatus   @default(QUEUED)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  assigneeId      String?
+  priority        ProductionPriority @default(NORMAL)
+  internalNotes   InternalNote[]
+  events          ProductionEvent[]
+  order           Order?             @relation(fields: [orderId], references: [id])
+}
+
+model Tag {
+  id         String       @id @default(cuid())
+  name       String
+  slug       String       @unique
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  products   ProductTag[]
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  passwordHash String
+  name         String?
+  phone        String?
+  role         UserRole       @default(CUSTOMER)
+  status       UserStatus     @default(ACTIVE)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  addresses    Address[]
+  cart         Cart?
+  files        File[]
+  orders       Order[]
+  notifications Notification[]
+  emailOutbox  EmailOutbox[]
+  printRequests PrintRequest[]
+}
+
+model PrintRequest {
+  id          String             @id @default(cuid())
+  userId      String
+  customerName String
+  email       String
+  phone       String
+  modelName   String
+  scale       String?
+  dimensions  String?
+  quantity    Int                @default(1)
+  material    String?
+  color       String?
+  note        String?
+  imageUrls   String[]
+  status      PrintRequestStatus @default(NEW)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  dedupeKey String           @unique
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+model EmailOutbox {
+  id            String            @id @default(cuid())
+  userId        String?
+  orderId       String?
+  to            String
+  subject       String
+  html          String
+  status        EmailOutboxStatus @default(PENDING)
+  attempts      Int               @default(0)
+  nextAttemptAt DateTime          @default(now())
+  sentAt        DateTime?
+  lastError     String?
+  dedupeKey     String            @unique
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  user          User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  order         Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([status, nextAttemptAt])
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  ARCHIVE
+  CANCEL
+  STATUS_CHANGE
+  PAYMENT_STATUS_CHANGE
+  TRACKING_UPDATE
+  NOTE_ADDED
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  USER_STATUS_CHANGE
+  ROLE_CHANGE
+}
+
+enum PrintRequestStatus {
+  NEW
+  REVIEWING
+  QUOTED
+  ACCEPTED
+  REJECTED
+  COMPLETED
+}
+
+enum CategoryStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum FileUploadStatus {
+  PENDING
+  CONFIRMED
+}
+
+enum OrderEventType {
+  ORDER_CREATED
+  STATUS_CHANGED
+  PAYMENT_STATUS_CHANGED
+  TRACKING_UPDATED
+  ORDER_CANCELLED
+  ADMIN_NOTE_ADDED
+  PAYMENT_NOTE_ADDED
+}
+
+enum OrderNoteType {
+  GENERAL
+  PAYMENT
+  CONTACT
+}
+
+enum OrderStatus {
+  DRAFT
+  PENDING_CONFIRMATION
+  CONFIRMED
+  WAITING_PAYMENT
+  PAID
+  IN_PRODUCTION
+  READY_TO_SHIP
+  SHIPPED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+  BLOCKED
+}
+
+enum PaymentEventType {
+  CHECKOUT_CREATED
+  CALLBACK_RECEIVED
+  WEBHOOK_RECEIVED
+  PAYMENT_CONFIRMED
+  PAYMENT_FAILED
+  REFUND_CONFIRMED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  REFUNDED
+}
+
+enum PaymentRequirement {
+  FULL
+  DEPOSIT
+}
+
+enum NotificationType {
+  ORDER_CREATED
+  PAYMENT_CONFIRMED
+  ORDER_STATUS_CHANGED
+}
+
+enum EmailOutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+}
+
+enum ProductAvailability {
+  PRE_ORDER
+  ORDER
+  IN_STOCK
+  SALE
+  CONTACT
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum ProductionPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum ProductionStatus {
+  QUEUED
+  PREPARING
+  PRINTING
+  POST_PROCESSING
+  PAINTING
+  QUALITY_CHECK
+  READY
+  BLOCKED
+  DONE
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}

@@ -1,0 +1,7 @@
+{
+  "extends": "@hanbotorder/tsconfig/nest.json",
+  "compilerOptions": {
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*.ts"]
+}

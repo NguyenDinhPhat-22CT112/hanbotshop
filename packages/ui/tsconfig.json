@@ -1,0 +1,4 @@
+{
+  "extends": "@hanbotorder/tsconfig/next.json",
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

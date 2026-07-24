@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "noEmit": false,
+    "outDir": "../../.tmp/web-tests",
+    "rootDir": "./src",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "plugins": []
+  },
+  "include": ["src/lib/checkout-utils.ts", "src/lib/navigation.ts", "src/lib/catalog-state.ts", "src/lib/frontend.spec.ts"]
+}
