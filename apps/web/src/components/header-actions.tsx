@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, authenticate, clearToken, getCart, getCurrentUser, type AuthUser } from '../lib/browser-api';
+import {
+  clearGuestCart,
+  getGuestCart,
+  isGuestCartStorageEvent,
+  mergeGuestCartAfterAuthentication
+} from '../lib/guest-cart';
 
 type CartState = Awaited<ReturnType<typeof getCart>>;
 type OpenPanel = 'account' | 'cart' | null;
@@ -30,13 +36,51 @@ export function HeaderActions() {
   const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  async function loadCartForCurrentSession() {
+    try {
+      const payload = await getCart();
+      setCart(payload);
+      setCartMessage(payload.items.length ? '' : 'Hiện chưa có sản phẩm');
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        const guestCart = getGuestCart();
+        setCart(guestCart);
+        setCartMessage(guestCart.items.length ? '' : 'Hiện chưa có sản phẩm');
+        return;
+      }
+
+      setCart(null);
+      setCartMessage('Chưa tải được giỏ hàng.');
+    }
+  }
+
   useEffect(() => {
     let isMounted = true;
+    const initialGuestCart = getGuestCart();
+    setCart(initialGuestCart);
+    setCartMessage(initialGuestCart.items.length ? '' : 'Hiện chưa có sản phẩm');
+
     getCurrentUser()
-      .then((payload) => {
-        if (isMounted) {
-          setHasToken(true);
-          setUser(payload.user);
+      .then(async (payload) => {
+        if (!isMounted) {
+          return;
+        }
+
+        setHasToken(true);
+        setUser(payload.user);
+
+        try {
+          const mergedCart = await mergeGuestCartAfterAuthentication();
+          const accountCart = mergedCart ?? await getCart();
+
+          if (isMounted) {
+            setCart(accountCart);
+            setCartMessage(accountCart.items.length ? '' : 'Hiện chưa có sản phẩm');
+          }
+        } catch {
+          if (isMounted) {
+            void loadCartForCurrentSession();
+          }
         }
       })
       .catch(() => {
@@ -47,8 +91,22 @@ export function HeaderActions() {
         }
       });
 
+    const refreshCart = () => {
+      void loadCartForCurrentSession();
+    };
+    const refreshGuestCart = (event: StorageEvent) => {
+      if (isGuestCartStorageEvent(event)) {
+        void loadCartForCurrentSession();
+      }
+    };
+
+    window.addEventListener('cart-updated', refreshCart);
+    window.addEventListener('storage', refreshGuestCart);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('cart-updated', refreshCart);
+      window.removeEventListener('storage', refreshGuestCart);
     };
   }, []);
 
@@ -75,15 +133,7 @@ export function HeaderActions() {
 
   async function openCart() {
     setOpenPanel((current) => (current === 'cart' ? null : 'cart'));
-
-    try {
-      const payload = await getCart();
-      setCart(payload);
-      setCartMessage(payload.items.length ? '' : 'Hiện chưa có sản phẩm');
-    } catch (error) {
-      setCart(null);
-      setCartMessage(error instanceof ApiError && error.status === 401 ? 'Đăng nhập để xem giỏ hàng.' : 'Chưa tải được giỏ hàng.');
-    }
+    await loadCartForCurrentSession();
   }
 
   async function submitLogin(formData: FormData) {
@@ -102,6 +152,15 @@ export function HeaderActions() {
       setUser(payload.user);
       setHasToken(true);
       setAccountMessage('');
+
+      try {
+        const mergedCart = await mergeGuestCartAfterAuthentication();
+        const accountCart = mergedCart ?? await getCart();
+        setCart(accountCart);
+        setCartMessage(accountCart.items.length ? '' : 'Hiện chưa có sản phẩm');
+      } catch {
+        void loadCartForCurrentSession();
+      }
     } catch (error) {
       setAccountMessage(error instanceof Error ? error.message : 'Không đăng nhập được.');
     } finally {
@@ -110,10 +169,11 @@ export function HeaderActions() {
   }
 
   function logout() {
+    clearGuestCart(false);
     clearToken();
     setHasToken(false);
     setUser(null);
-    setCart(null);
+    setCart(getGuestCart());
     setOpenPanel(null);
     setAccountMessage('Đã đăng xuất.');
   }

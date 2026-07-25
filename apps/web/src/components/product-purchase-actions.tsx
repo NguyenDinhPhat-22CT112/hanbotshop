@@ -5,15 +5,34 @@ import { ProductVariantSelector } from './product-variant-selector';
 import { AddToCartButton } from './add-to-cart-button';
 
 type ProductVariant = { id: string; name: string; price: string | null; isActive: boolean; trackInventory: boolean; inventoryQuantity: number };
-type ProductPurchaseActionsProps = { productId: string; variants: ProductVariant[]; basePrice: string | null; purchaseAllowed?: boolean };
+type ProductPurchaseActionsProps = {
+  productId: string;
+  productName: string;
+  productImageUrl?: string | null;
+  paymentRequirement: 'FULL' | 'DEPOSIT';
+  depositPercent: number;
+  variants: ProductVariant[];
+  basePrice: string | null;
+  purchaseAllowed?: boolean;
+};
 
-export function ProductPurchaseActions({ productId, variants, basePrice, purchaseAllowed = true }: ProductPurchaseActionsProps) {
+export function ProductPurchaseActions({
+  productId,
+  productName,
+  productImageUrl,
+  paymentRequirement,
+  depositPercent,
+  variants,
+  basePrice,
+  purchaseAllowed = true
+}: ProductPurchaseActionsProps) {
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [showVariantWarning, setShowVariantWarning] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const activeVariants = variants.filter((variant) => variant.isActive && (!variant.trackInventory || variant.inventoryQuantity > 0));
   const hasVariants = activeVariants.length > 0;
   const disabled = !purchaseAllowed || (variants.length > 0 && activeVariants.length === 0);
+  const selectedVariant = activeVariants.find((variant) => variant.id === selectedVariantId);
 
   function validateAddToCart() {
     if (hasVariants && !selectedVariantId) {
@@ -36,7 +55,20 @@ export function ProductPurchaseActions({ productId, variants, basePrice, purchas
           <output aria-live="polite">{quantity}</output>
           <button type="button" aria-label="Tăng số lượng" disabled={quantity >= 99} onClick={() => setQuantity((current) => Math.min(99, current + 1))}>+</button>
         </div>
-        <AddToCartButton productId={productId} variantId={selectedVariantId} label="Thêm vào giỏ" beforeAdd={validateAddToCart} disabled={disabled} quantity={quantity} />
+        <AddToCartButton
+          productId={productId}
+          productName={productName}
+          productImageUrl={productImageUrl}
+          unitPrice={selectedVariant?.price ?? basePrice ?? '0'}
+          paymentRequirement={paymentRequirement}
+          depositPercent={depositPercent}
+          variantId={selectedVariantId}
+          variantName={selectedVariant?.name}
+          label="Thêm vào giỏ"
+          beforeAdd={validateAddToCart}
+          disabled={disabled}
+          quantity={quantity}
+        />
       </div>
     </div>
   );

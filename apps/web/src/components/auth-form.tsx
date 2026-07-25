@@ -3,10 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { authenticate, type AuthMode } from '../lib/browser-api';
+import { mergeGuestCartAfterAuthentication } from '../lib/guest-cart';
 import { safeInternalPath } from '../lib/navigation';
 
 type AuthFormProps = {
   mode: AuthMode;
+  nextPath?: string | null;
 };
 
 function getRegisterName(formData: FormData) {
@@ -16,7 +18,7 @@ function getRegisterName(formData: FormData) {
     .join(' ');
 }
 
-export function AuthForm({ mode }: AuthFormProps) {
+export function AuthForm({ mode, nextPath }: AuthFormProps) {
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -37,8 +39,8 @@ export function AuthForm({ mode }: AuthFormProps) {
         ...(isRegister ? { name: getRegisterName(formData) } : {})
       });
 
+      await mergeGuestCartAfterAuthentication().catch(() => null);
       setMessage(`Đã đăng nhập với tài khoản ${payload.user.email}`);
-      const nextPath = new URLSearchParams(window.location.search).get('next');
       router.push(safeInternalPath(nextPath, '/account'));
       router.refresh();
     } catch (error) {
@@ -90,7 +92,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         <div className="login-help-links">
           <a href="/forgot-password">Quên mật khẩu?</a>
           <span>
-            hoặc <a href="/register">Đăng ký</a>
+            hoặc <a href={nextPath ? `/register?next=${encodeURIComponent(safeInternalPath(nextPath, '/account'))}` : '/register'}>Đăng ký</a>
           </span>
         </div>
       </div>

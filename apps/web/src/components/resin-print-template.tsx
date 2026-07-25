@@ -10,12 +10,23 @@ type ResinPrintTemplateProps = {
   imageUrl?: string;
   imageTone: string;
   category: string;
+  paymentRequirement: 'FULL' | 'DEPOSIT';
+  depositPercent: number;
 };
 
 const materialOptions = ['Resin tiêu chuẩn', 'Resin chi tiết cao', 'Resin chuyên dụng cho mô hình', 'Resin trong suốt', 'Cần shop tư vấn'];
 const colorOptions = ['Xám', 'Trắng', 'Đen', 'Trong suốt', 'Theo yêu cầu'];
 
-export function ResinPrintTemplate({ productId, productName, price, imageUrl, imageTone, category }: ResinPrintTemplateProps) {
+export function ResinPrintTemplate({
+  productId,
+  productName,
+  price,
+  imageUrl,
+  imageTone,
+  category,
+  paymentRequirement,
+  depositPercent
+}: ResinPrintTemplateProps) {
   const [modelName, setModelName] = useState('');
   const [scale, setScale] = useState('');
   const [size, setSize] = useState('');
@@ -127,7 +138,16 @@ export function ResinPrintTemplate({ productId, productName, price, imageUrl, im
         </div>
 
         <div className="resin-order-cta">
-          <AddToCartButton productId={productId} label="Đặt in" onSuccess={saveDraft} />
+          <AddToCartButton
+            productId={productId}
+            productName={productName}
+            productImageUrl={imageUrl}
+            unitPrice={price}
+            paymentRequirement={paymentRequirement}
+            depositPercent={depositPercent}
+            label="Đặt in"
+            onSuccess={saveDraft}
+          />
           <button type="button" aria-label="Tùy chọn đặt in">
             ˅
           </button>

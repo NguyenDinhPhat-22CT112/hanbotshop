@@ -43,7 +43,8 @@ export class CatalogController {
       properties: {
         name: { type: 'string', example: 'Gundam' },
         slug: { type: 'string', example: 'gundam' },
-        parentId: { type: 'string', nullable: true, example: null }
+        parentId: { type: 'string', nullable: true, example: null },
+        placement: { type: 'string', enum: ['ORDER', 'RESIN', 'BOTH'], example: 'BOTH' }
       }
     }
   })

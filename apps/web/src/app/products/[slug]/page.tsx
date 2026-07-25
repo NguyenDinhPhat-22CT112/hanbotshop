@@ -84,6 +84,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           imageUrl={product.imageUrl}
           imageTone={product.imageTone}
           category={product.category}
+          paymentRequirement={product.paymentRequirement}
+          depositPercent={product.depositPercent}
         />
       ) : (
         <section className="product-template">
@@ -108,6 +110,10 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
           <ProductPurchaseActions
             productId={product.id}
+            productName={product.name}
+            productImageUrl={product.imageUrl}
+            paymentRequirement={product.paymentRequirement}
+            depositPercent={product.depositPercent}
             variants={product.variants ?? []}
             basePrice={product.price.replace(' VND', '').replace(/\./g, '')}
             purchaseAllowed={product.variants?.length ? product.variants.some((variant) => variant.isActive && (!variant.trackInventory || variant.inventoryQuantity > 0)) : (!product.trackInventory || product.inventoryQuantity > 0)}
@@ -188,7 +194,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 
       <section className="related-products-section">
         <div className="related-heading">
-          <p>Cùng hãng hoặc cùng tag</p>
+          <p>Cùng loại, danh mục hoặc tag</p>
           <h2>Sản phẩm liên quan</h2>
         </div>
         <div className="related-products-row">
@@ -212,15 +218,45 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
 }
 
 function getRelatedProducts(product: ProductCardModel, products: ProductCardModel[]) {
+  const productIsResin = isResinProduct(product);
+  const productTags = new Set(
+    (product.tags ?? [])
+      .map(normalizeRelatedTag)
+      .filter((tag) => tag && tag !== 'order' && tag !== 'resin')
+  );
   const candidates = products.filter((item) => item.slug !== product.slug);
   const scoredProducts = candidates
     .map((item) => ({
       item,
-      score: Number(item.studio === product.studio) * 3 + Number(item.category === product.category) * 2 + Number(item.status === product.status)
+      sameType: isResinProduct(item) === productIsResin,
+      sameCategory: Boolean(
+        product.category &&
+        product.category !== 'Danh mục' &&
+        item.category === product.category
+      ),
+      sharedTagCount: new Set(
+        (item.tags ?? [])
+          .map(normalizeRelatedTag)
+          .filter((tag) => tag && tag !== 'order' && tag !== 'resin' && productTags.has(tag))
+      ).size,
+      sameAvailability: item.status === product.status
     }))
-    .sort((left, right) => right.score - left.score);
+    .sort((left, right) => {
+      if (left.sameType !== right.sameType) return Number(right.sameType) - Number(left.sameType);
+      if (left.sameCategory !== right.sameCategory) return Number(right.sameCategory) - Number(left.sameCategory);
+      if (left.sharedTagCount !== right.sharedTagCount) return right.sharedTagCount - left.sharedTagCount;
+      if (left.sameAvailability !== right.sameAvailability) {
+        return Number(right.sameAvailability) - Number(left.sameAvailability);
+      }
+
+      return left.item.name.localeCompare(right.item.name, 'vi');
+    });
 
   return scoredProducts.slice(0, 5).map(({ item }) => item);
+}
+
+function normalizeRelatedTag(tag: string) {
+  return tag.trim().toLowerCase();
 }
 
 function isResinProduct(product: ProductCardModel) {

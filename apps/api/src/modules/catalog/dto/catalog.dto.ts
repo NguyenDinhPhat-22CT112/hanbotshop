@@ -1,4 +1,4 @@
-import { PaymentRequirement, ProductAvailability, ProductStatus } from '@prisma/client';
+import { CategoryPlacement, PaymentRequirement, ProductAvailability, ProductStatus } from '@prisma/client';
 import { z } from 'zod';
 
 const optionalDate = z
@@ -17,7 +17,8 @@ const optionalPrice = z
 export const createCategorySchema = z.object({
   name: z.string().min(1).max(160),
   slug: z.string().min(1).max(180),
-  parentId: z.string().min(1).optional().nullable()
+  parentId: z.string().min(1).optional().nullable(),
+  placement: z.nativeEnum(CategoryPlacement).optional()
 });
 
 export const updateCategorySchema = createCategorySchema.partial();

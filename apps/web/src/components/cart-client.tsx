@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getCart, removeCartItem, updateCartItem } from '../lib/browser-api';
+import { ApiError, getCart, removeCartItem, updateCartItem } from '../lib/browser-api';
+import { getGuestCart, isGuestCartStorageEvent, removeGuestCartItem, updateGuestCartItem } from '../lib/guest-cart';
 
 type CartState = Awaited<ReturnType<typeof getCart>>;
 
@@ -15,18 +16,11 @@ function formatVnd(value: string) {
   return `${new Intl.NumberFormat('vi-VN').format(numericValue)}đ`;
 }
 
-function isAuthError(error: unknown) {
-  if (!(error instanceof Error)) {
-    return false;
-  }
-
-  return /bearer|unauthorized|đăng nhập|token/i.test(error.message);
-}
-
 export function CartClient() {
   const [cart, setCart] = useState<CartState | null>(null);
   const [message, setMessage] = useState('Đang tải giỏ hàng...');
-  const [state, setState] = useState<'loading' | 'guest' | 'ready' | 'error'>('loading');
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [cartOwner, setCartOwner] = useState<'account' | 'guest'>('guest');
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
 
   async function loadCart() {
@@ -35,10 +29,13 @@ export function CartClient() {
       setCart(payload);
       setMessage('');
       setState('ready');
+      setCartOwner('account');
     } catch (error) {
-      if (isAuthError(error)) {
-        setState('guest');
-        setMessage('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để xem giỏ hàng.');
+      if (error instanceof ApiError && error.status === 401) {
+        setCart(getGuestCart());
+        setCartOwner('guest');
+        setState('ready');
+        setMessage('');
         return;
       }
 
@@ -49,6 +46,23 @@ export function CartClient() {
 
   useEffect(() => {
     void loadCart();
+
+    const refreshCart = () => {
+      void loadCart();
+    };
+    const refreshGuestCart = (event: StorageEvent) => {
+      if (isGuestCartStorageEvent(event)) {
+        void loadCart();
+      }
+    };
+
+    window.addEventListener('cart-updated', refreshCart);
+    window.addEventListener('storage', refreshGuestCart);
+
+    return () => {
+      window.removeEventListener('cart-updated', refreshCart);
+      window.removeEventListener('storage', refreshGuestCart);
+    };
   }, []);
 
   async function changeQuantity(itemId: string, quantity: number) {
@@ -59,7 +73,9 @@ export function CartClient() {
     setBusyItemId(itemId);
 
     try {
-      const payload = await updateCartItem(itemId, quantity);
+      const payload = cartOwner === 'guest'
+        ? updateGuestCartItem(itemId, quantity)
+        : await updateCartItem(itemId, quantity);
       setCart(payload);
       setMessage('');
       setState('ready');
@@ -74,7 +90,9 @@ export function CartClient() {
     setBusyItemId(itemId);
 
     try {
-      const payload = await removeCartItem(itemId);
+      const payload = cartOwner === 'guest'
+        ? removeGuestCartItem(itemId)
+        : await removeCartItem(itemId);
       setCart(payload);
       setMessage('');
       setState('ready');
@@ -85,17 +103,12 @@ export function CartClient() {
     }
   }
 
-  if (state === 'loading' || state === 'guest' || state === 'error') {
+  if (state === 'loading' || state === 'error') {
     return (
       <div className={`cart-empty-state cart-empty-state--${state}`}>
-        <h2>{state === 'guest' ? 'Bạn chưa đăng nhập' : state === 'error' ? 'Chưa tải được giỏ hàng' : 'Đang tải giỏ hàng'}</h2>
+        <h2>{state === 'error' ? 'Chưa tải được giỏ hàng' : 'Đang tải giỏ hàng'}</h2>
         <p>{message}</p>
         <div className="cart-empty-actions">
-          {state === 'guest' ? (
-            <a className="cart-continue-shopping" href="/login">
-              Đăng nhập
-            </a>
-          ) : null}
           <a className="cart-secondary-link" href="/collections/tat-ca-san-pham">
             Tiếp tục mua hàng
           </a>
@@ -191,7 +204,7 @@ export function CartClient() {
             <strong className="cart-summary-total-amount">{formatVnd(cart.subtotal)}</strong>
           </div>
 
-          <a className="cart-checkout-btn" href="/checkout">
+          <a className="cart-checkout-btn" href={cartOwner === 'guest' ? '/login?next=%2Fcheckout' : '/checkout'}>
             THANH TOÁN
           </a>
 

@@ -6,8 +6,8 @@ export default function AdminCategoriesPage() {
       <header className="admin-header">
         <div>
           <p>Catalog</p>
-          <h1>Danh muc</h1>
-          <span>Quan ly category cha/con, slug va trang thai luu tru cho catalog.</span>
+          <h1>Danh mục</h1>
+          <span>Quản lý danh mục cha/con, đường dẫn và phạm vi hiển thị trên cửa hàng.</span>
         </div>
       </header>
       <CategoriesPanel />

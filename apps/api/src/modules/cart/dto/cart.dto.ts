@@ -10,5 +10,10 @@ export const updateCartItemSchema = z.object({
   quantity: z.number().int().positive().max(99)
 });
 
+export const mergeGuestCartSchema = z.object({
+  items: z.array(addCartItemSchema).max(30)
+});
+
 export type AddCartItemDto = z.infer<typeof addCartItemSchema>;
 export type UpdateCartItemDto = z.infer<typeof updateCartItemSchema>;
+export type MergeGuestCartDto = z.infer<typeof mergeGuestCartSchema>;

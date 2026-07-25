@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { authenticate } from '../lib/browser-api';
+import { mergeGuestCartAfterAuthentication } from '../lib/guest-cart';
+import { safeInternalPath } from '../lib/navigation';
 
 function getRegisterName(formData: FormData) {
   return [formData.get('lastName'), formData.get('firstName')]
@@ -11,7 +13,7 @@ function getRegisterName(formData: FormData) {
     .join(' ');
 }
 
-export function RegisterAuthForm() {
+export function RegisterAuthForm({ nextPath }: { nextPath?: string | null }) {
   const router = useRouter();
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -31,8 +33,9 @@ export function RegisterAuthForm() {
         password: String(formData.get('password') ?? '')
       });
 
+      await mergeGuestCartAfterAuthentication().catch(() => null);
       setMessage(`Đã đăng nhập với tài khoản ${payload.user.email}`);
-      router.push('/account');
+      router.push(safeInternalPath(nextPath, '/account'));
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Không đăng ký được.');

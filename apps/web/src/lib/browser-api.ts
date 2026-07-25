@@ -107,29 +107,42 @@ export async function getAddresses() {
 }
 
 export async function addCartItem(productId: string, variantId: string | null = null, quantity = 1) {
-  return apiFetch('/cart/items', {
+  return apiFetch<CartResponse & { itemAdded: boolean }>('/cart/items', {
     method: 'POST',
     body: JSON.stringify({ productId, variantId, quantity })
   });
 }
 
+export type CartItem = {
+  id: string;
+  productId: string;
+  variantId: string | null;
+  quantity: number;
+  unitPrice: string;
+  totalPrice: string;
+  product: {
+    name: string;
+    imageUrl?: string | null;
+    paymentRequirement: 'FULL' | 'DEPOSIT';
+    depositPercent: number;
+  };
+  variant?: { name: string } | null;
+};
+
+export type CartResponse = {
+  items: CartItem[];
+  subtotal: string;
+};
+
 export async function getCart() {
-  return apiFetch<{
-    items: Array<{
-      id: string;
-      quantity: number;
-      unitPrice: string;
-      totalPrice: string;
-      product: {
-        name: string;
-        imageUrl?: string;
-        paymentRequirement: 'FULL' | 'DEPOSIT';
-        depositPercent: number;
-      };
-      variant?: { name: string } | null;
-    }>;
-    subtotal: string;
-  }>('/cart');
+  return apiFetch<CartResponse>('/cart');
+}
+
+export async function mergeCartItems(items: Array<{ productId: string; variantId: string | null; quantity: number }>) {
+  return apiFetch<CartResponse & { mergedCount: number; skippedCount: number }>('/cart/merge', {
+    method: 'POST',
+    body: JSON.stringify({ items })
+  });
 }
 
 export async function updateCartItem(itemId: string, quantity: number) {

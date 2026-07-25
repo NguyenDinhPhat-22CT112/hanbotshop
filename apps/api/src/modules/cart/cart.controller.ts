@@ -5,7 +5,7 @@ import { CurrentUser } from '../identity/decorators/current-user.decorator';
 import { AuthGuard } from '../identity/guards/auth.guard';
 import type { AuthenticatedUser } from '../identity/types/authenticated-user';
 import { CartService } from './cart.service';
-import { addCartItemSchema, updateCartItemSchema } from './dto/cart.dto';
+import { addCartItemSchema, mergeGuestCartSchema, updateCartItemSchema } from './dto/cart.dto';
 
 @ApiTags('Cart')
 @Controller('cart')
@@ -43,6 +43,38 @@ export class CartController {
     const dto = parseZodSchema(addCartItemSchema, body);
 
     return this.cartService.addCartItem(user.id, dto);
+  }
+
+  @Post('merge')
+  @UseGuards(AuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Merge guest cart', description: 'Add valid guest cart items that are not already in the user cart' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['items'],
+      properties: {
+        items: {
+          type: 'array',
+          maxItems: 30,
+          items: {
+            type: 'object',
+            required: ['productId', 'quantity'],
+            properties: {
+              productId: { type: 'string' },
+              variantId: { type: 'string', nullable: true },
+              quantity: { type: 'number', minimum: 1, maximum: 99 }
+            }
+          }
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 201, description: 'Guest cart merged into the current user cart' })
+  mergeGuestCart(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
+    const dto = parseZodSchema(mergeGuestCartSchema, body);
+
+    return this.cartService.mergeGuestCart(user.id, dto);
   }
 
   @Patch('items/:id')

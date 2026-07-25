@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, ProductStatus } from '@prisma/client';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, ProductAvailability, ProductStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import type { AddCartItemDto, UpdateCartItemDto } from './dto/cart.dto';
+import type { AddCartItemDto, MergeGuestCartDto, UpdateCartItemDto } from './dto/cart.dto';
 
 @Injectable()
 export class CartService {
@@ -14,10 +14,10 @@ export class CartService {
   }
 
   async addCartItem(userId: string, dto: AddCartItemDto) {
-    await this.ensureProductCanBePurchased(dto.productId);
+    await this.ensureProductCanBePurchased(dto.productId, dto.quantity);
 
     if (dto.variantId) {
-      await this.ensureVariantBelongsToProduct(dto.productId, dto.variantId);
+      await this.ensureVariantBelongsToProduct(dto.productId, dto.variantId, dto.quantity);
     }
 
     const cart = await this.ensureCart(userId);
@@ -26,22 +26,72 @@ export class CartService {
     );
 
     if (existingItem) {
-      await this.prisma.cartItem.update({
-        where: { id: existingItem.id },
-        data: { quantity: existingItem.quantity + dto.quantity }
-      });
-    } else {
+      return {
+        ...(await this.getCart(userId)),
+        itemAdded: false
+      };
+    }
+
+    await this.prisma.cartItem.create({
+      data: {
+        cartId: cart.id,
+        productId: dto.productId,
+        variantId: dto.variantId ?? null,
+        quantity: dto.quantity
+      }
+    });
+
+    return {
+      ...(await this.getCart(userId)),
+      itemAdded: true
+    };
+  }
+
+  async mergeGuestCart(userId: string, dto: MergeGuestCartDto) {
+    const cart = await this.ensureCart(userId);
+    const existingKeys = new Set(
+      cart.items.map((item) => this.cartItemKey(item.productId, item.variantId))
+    );
+    let mergedCount = 0;
+
+    for (const item of dto.items) {
+      const key = this.cartItemKey(item.productId, item.variantId);
+
+      if (existingKeys.has(key)) {
+        continue;
+      }
+
+      try {
+        await this.ensureProductCanBePurchased(item.productId, item.quantity);
+
+        if (item.variantId) {
+          await this.ensureVariantBelongsToProduct(item.productId, item.variantId, item.quantity);
+        }
+      } catch (error) {
+        if (error instanceof NotFoundException || error instanceof ConflictException) {
+          continue;
+        }
+
+        throw error;
+      }
+
       await this.prisma.cartItem.create({
         data: {
           cartId: cart.id,
-          productId: dto.productId,
-          variantId: dto.variantId ?? null,
-          quantity: dto.quantity
+          productId: item.productId,
+          variantId: item.variantId ?? null,
+          quantity: item.quantity
         }
       });
+      existingKeys.add(key);
+      mergedCount += 1;
     }
 
-    return this.getCart(userId);
+    return {
+      ...(await this.getCart(userId)),
+      mergedCount,
+      skippedCount: dto.items.length - mergedCount
+    };
   }
 
   async updateCartItem(userId: string, itemId: string, dto: UpdateCartItemDto) {
@@ -88,17 +138,37 @@ export class CartService {
     };
   }
 
-  private async ensureProductCanBePurchased(productId: string) {
+  private async ensureProductCanBePurchased(productId: string, quantity: number) {
     const product = await this.prisma.product.findUnique({ where: { id: productId } });
 
     if (!product || product.status !== ProductStatus.ACTIVE) {
       throw new NotFoundException('Product not found.');
     }
 
+    if (product.availability === ProductAvailability.CONTACT) {
+      throw new ConflictException('Product is not available for cart checkout.');
+    }
+
+    if (product.availability === ProductAvailability.PRE_ORDER) {
+      const now = new Date();
+
+      if (product.preorderOpenAt && now < product.preorderOpenAt) {
+        throw new ConflictException('Product pre-order has not opened.');
+      }
+
+      if (product.preorderCloseAt && now > product.preorderCloseAt) {
+        throw new ConflictException('Product pre-order has closed.');
+      }
+    }
+
+    if (product.trackInventory && product.inventoryQuantity < quantity) {
+      throw new ConflictException('Insufficient product inventory.');
+    }
+
     return product;
   }
 
-  private async ensureVariantBelongsToProduct(productId: string, variantId: string) {
+  private async ensureVariantBelongsToProduct(productId: string, variantId: string, quantity: number) {
     const variant = await this.prisma.productVariant.findFirst({
       where: {
         id: variantId,
@@ -111,7 +181,15 @@ export class CartService {
       throw new NotFoundException('Product variant not found.');
     }
 
+    if (variant.trackInventory && variant.inventoryQuantity < quantity) {
+      throw new ConflictException('Insufficient product variant inventory.');
+    }
+
     return variant;
+  }
+
+  private cartItemKey(productId: string, variantId?: string | null) {
+    return `${productId}:${variantId ?? 'base'}`;
   }
 
   private async ensureCartItemOwner(userId: string, itemId: string) {

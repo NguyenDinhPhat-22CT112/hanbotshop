@@ -25,7 +25,16 @@ export function ProductCard({ product }: ProductCardProps) {
       {product.variants?.length ? (
         <Link className="product-select-link" href={`/products/${product.slug}`}>Chọn phiên bản</Link>
       ) : (
-        <AddToCartButton productId={product.id} disabled={product.trackInventory && product.inventoryQuantity <= 0} label={product.trackInventory && product.inventoryQuantity <= 0 ? 'Hết hàng' : 'Thêm vào giỏ'} />
+        <AddToCartButton
+          productId={product.id}
+          productName={product.name}
+          productImageUrl={product.imageUrl}
+          unitPrice={product.price}
+          paymentRequirement={product.paymentRequirement}
+          depositPercent={product.depositPercent}
+          disabled={product.trackInventory && product.inventoryQuantity <= 0}
+          label={product.trackInventory && product.inventoryQuantity <= 0 ? 'Hết hàng' : 'Thêm vào giỏ'}
+        />
       )}
     </article>
   );

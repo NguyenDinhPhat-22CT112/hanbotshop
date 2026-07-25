@@ -43,7 +43,8 @@ export class CatalogService {
       data: {
         name: dto.name,
         slug: dto.slug,
-        parentId: dto.parentId ?? null
+        parentId: dto.parentId ?? null,
+        placement: dto.placement
       }
     });
   }
@@ -68,7 +69,8 @@ export class CatalogService {
       data: {
         name: dto.name,
         slug: dto.slug,
-        parentId: dto.parentId === undefined ? undefined : dto.parentId
+        parentId: dto.parentId === undefined ? undefined : dto.parentId,
+        placement: dto.placement
       }
     });
   }

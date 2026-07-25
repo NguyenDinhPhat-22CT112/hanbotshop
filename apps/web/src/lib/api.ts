@@ -77,6 +77,7 @@ export type Category = {
   name: string;
   slug: string;
   parentId: string | null;
+  placement: 'ORDER' | 'RESIN' | 'BOTH';
   _count: { products: number };
 };
 

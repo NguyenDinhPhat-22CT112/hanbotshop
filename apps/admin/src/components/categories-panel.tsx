@@ -1,13 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { adminFetch, getAdminToken } from '../lib/browser-api';
+import { createProductSlug } from '../lib/product-slug';
+
+type CategoryPlacement = 'ORDER' | 'RESIN' | 'BOTH';
 
 type Category = {
   id: string;
   name: string;
   slug: string;
   parentId: string | null;
+  placement: CategoryPlacement;
   _count?: { products: number };
 };
 
@@ -15,23 +19,37 @@ type CategoryResponse = {
   data: Category[];
 };
 
+function placementFromForm(formData: FormData): CategoryPlacement | null {
+  const showOnOrder = formData.get('showOnOrder') === 'on';
+  const showOnResin = formData.get('showOnResin') === 'on';
+
+  if (showOnOrder && showOnResin) return 'BOTH';
+  if (showOnOrder) return 'ORDER';
+  if (showOnResin) return 'RESIN';
+  return null;
+}
+
 export function CategoriesPanel() {
+  const createFormRef = useRef<HTMLFormElement>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [message, setMessage] = useState('Dang tai danh muc...');
+  const [message, setMessage] = useState('Đang tải danh mục...');
+  const [categoryName, setCategoryName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [slugWasEdited, setSlugWasEdited] = useState(false);
 
   async function loadCategories() {
     if (!getAdminToken()) {
-      setMessage('Vui long dang nhap quan tri truoc.');
+      setMessage('Vui lòng đăng nhập quản trị trước.');
       return;
     }
 
     try {
       const payload = await adminFetch<CategoryResponse>('/categories');
       setCategories(payload.data);
-      setMessage(payload.data.length ? '' : 'Chua co danh muc.');
+      setMessage(payload.data.length ? '' : 'Chưa có danh mục.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Khong tai duoc danh muc.');
+      setMessage(error instanceof Error ? error.message : 'Không tải được danh mục.');
     }
   }
 
@@ -40,7 +58,13 @@ export function CategoriesPanel() {
   }, []);
 
   async function createCategory(formData: FormData) {
-    setMessage('Dang tao danh muc...');
+    setMessage('Đang tạo danh mục...');
+    const placement = placementFromForm(formData);
+
+    if (!placement) {
+      setMessage('Vui lòng chọn ít nhất một trang hiển thị cho danh mục.');
+      return;
+    }
 
     try {
       await adminFetch('/categories', {
@@ -48,18 +72,29 @@ export function CategoriesPanel() {
         body: JSON.stringify({
           name: String(formData.get('name') ?? ''),
           slug: String(formData.get('slug') ?? ''),
-          parentId: String(formData.get('parentId') ?? '') || null
+          parentId: String(formData.get('parentId') ?? '') || null,
+          placement
         })
       });
+      createFormRef.current?.reset();
+      setCategoryName('');
+      setSlug('');
+      setSlugWasEdited(false);
       await loadCategories();
-      setMessage('Da tao danh muc.');
+      setMessage('Đã tạo danh mục.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Khong tao duoc danh muc.');
+      setMessage(error instanceof Error ? error.message : 'Không tạo được danh mục.');
     }
   }
 
   async function updateCategory(category: Category, formData: FormData) {
-    setMessage('Dang cap nhat danh muc...');
+    setMessage('Đang cập nhật danh mục...');
+    const placement = placementFromForm(formData);
+
+    if (!placement) {
+      setMessage('Vui lòng chọn ít nhất một trang hiển thị cho danh mục.');
+      return;
+    }
 
     try {
       await adminFetch(`/categories/${category.id}`, {
@@ -67,19 +102,23 @@ export function CategoriesPanel() {
         body: JSON.stringify({
           name: String(formData.get('name') ?? category.name),
           slug: String(formData.get('slug') ?? category.slug),
-          parentId: String(formData.get('parentId') ?? '') || null
+          parentId: String(formData.get('parentId') ?? '') || null,
+          placement
         })
       });
       setEditingId(null);
       await loadCategories();
-      setMessage('Da cap nhat danh muc.');
+      setMessage('Đã cập nhật danh mục.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Khong cap nhat duoc danh muc.');
+      setMessage(error instanceof Error ? error.message : 'Không cập nhật được danh mục.');
     }
   }
 
   async function archiveCategory(category: Category) {
-    if (!window.confirm(`Xóa danh mục “${category.name}”? Danh mục chỉ có thể xóa khi không còn ràng buộc sản phẩm.`)) return;
+    if (!window.confirm(`Xóa danh mục “${category.name}”? Danh mục chỉ có thể xóa khi không còn ràng buộc sản phẩm.`)) {
+      return;
+    }
+
     setMessage('Đang xóa danh mục...');
 
     try {
@@ -94,46 +133,85 @@ export function CategoriesPanel() {
   return (
     <div className="detail-stack">
       <section className="admin-panel">
-        <h2>Tao danh muc</h2>
-        <form className="admin-form compact-form" action={createCategory}>
+        <h2>Tạo danh mục</h2>
+        <form ref={createFormRef} className="admin-form compact-form" action={createCategory}>
           <label>
-            Ten danh muc
-            <input name="name" required />
+            Tên danh mục
+            <input
+              name="name"
+              required
+              value={categoryName}
+              onChange={(event) => {
+                const nextName = event.target.value;
+                setCategoryName(nextName);
+                if (!slugWasEdited) setSlug(createProductSlug(nextName));
+              }}
+            />
           </label>
           <label>
             Slug
-            <input name="slug" required />
+            <input
+              name="slug"
+              required
+              value={slug}
+              onChange={(event) => {
+                const nextSlug = event.target.value;
+                setSlug(nextSlug);
+                setSlugWasEdited(nextSlug !== createProductSlug(categoryName));
+              }}
+            />
+            <small>Tự tạo theo tên danh mục; bạn vẫn có thể sửa lại.</small>
           </label>
+          <fieldset className="category-placement-field">
+            <legend>Hiển thị tại trang</legend>
+            <div className="category-placement-options">
+              <label>
+                <input name="showOnOrder" type="checkbox" defaultChecked />
+                <span>Order</span>
+              </label>
+              <label>
+                <input name="showOnResin" type="checkbox" defaultChecked />
+                <span>Resin</span>
+              </label>
+            </div>
+            <small>Có thể chọn một hoặc cả hai trang.</small>
+          </fieldset>
           <label>
-            Danh muc cha
+            Danh mục cha
             <select name="parentId" defaultValue="">
-              <option value="">Khong co</option>
+              <option value="">Không có — danh mục cấp cao nhất</option>
               {categories.map((category) => (
                 <option value={category.id} key={category.id}>
                   {category.name}
                 </option>
               ))}
             </select>
+            <small>Dùng khi danh mục này nằm bên trong một danh mục lớn hơn.</small>
           </label>
-          <button type="submit">Tao danh muc</button>
+          <button type="submit">Tạo danh mục</button>
         </form>
       </section>
 
       <section className="table-panel">
         <div className="table-row category-row table-head">
-          <span>Danh muc</span>
+          <span>Danh mục</span>
           <span>Slug</span>
-          <span>Cha</span>
-          <span>San pham</span>
-          <span>Thao tac</span>
+          <span>Danh mục cha</span>
+          <span>Hiển thị tại</span>
+          <span>Sản phẩm</span>
+          <span>Thao tác</span>
         </div>
         {categories.map((category) =>
           editingId === category.id ? (
-            <form className="table-row category-row" action={(formData) => void updateCategory(category, formData)} key={category.id}>
+            <form
+              className="table-row category-row"
+              action={(formData) => void updateCategory(category, formData)}
+              key={category.id}
+            >
               <input name="name" defaultValue={category.name} required />
               <input name="slug" defaultValue={category.slug} required />
               <select name="parentId" defaultValue={category.parentId ?? ''}>
-                <option value="">Khong co</option>
+                <option value="">Không có</option>
                 {categories
                   .filter((item) => item.id !== category.id)
                   .map((item) => (
@@ -142,11 +220,29 @@ export function CategoriesPanel() {
                     </option>
                   ))}
               </select>
+              <span className="category-placement-options is-compact">
+                <label>
+                  <input
+                    name="showOnOrder"
+                    type="checkbox"
+                    defaultChecked={category.placement === 'ORDER' || category.placement === 'BOTH'}
+                  />
+                  <span>Order</span>
+                </label>
+                <label>
+                  <input
+                    name="showOnResin"
+                    type="checkbox"
+                    defaultChecked={category.placement === 'RESIN' || category.placement === 'BOTH'}
+                  />
+                  <span>Resin</span>
+                </label>
+              </span>
               <span>{category._count?.products ?? 0}</span>
               <span className="row-actions">
-                <button type="submit">Luu</button>
+                <button type="submit">Lưu</button>
                 <button type="button" className="secondary-button" onClick={() => setEditingId(null)}>
-                  Huy
+                  Hủy
                 </button>
               </span>
             </form>
@@ -157,12 +253,27 @@ export function CategoriesPanel() {
                 <small>{category.id}</small>
               </strong>
               <span>{category.slug}</span>
-              <span>{categories.find((item) => item.id === category.parentId)?.name ?? '-'}</span>
+              <span>{categories.find((item) => item.id === category.parentId)?.name ?? 'Không có'}</span>
+              <span className="category-placement-badges">
+                {category.placement === 'ORDER' || category.placement === 'BOTH' ? <i>Order</i> : null}
+                {category.placement === 'RESIN' || category.placement === 'BOTH' ? <i>Resin</i> : null}
+              </span>
               <span>{category._count?.products ?? 0}</span>
-              <span className="action-cell"><details><summary>Hành động <b>⌄</b></summary><div>
-                <button type="button" onClick={() => setEditingId(category.id)}>Chỉnh sửa</button>
-                <button type="button" className="danger-menu-item" onClick={() => void archiveCategory(category)}>Xóa danh mục</button>
-              </div></details></span>
+              <span className="action-cell">
+                <details>
+                  <summary>
+                    Hành động <b>⌄</b>
+                  </summary>
+                  <div>
+                    <button type="button" onClick={() => setEditingId(category.id)}>
+                      Chỉnh sửa
+                    </button>
+                    <button type="button" className="danger-menu-item" onClick={() => void archiveCategory(category)}>
+                      Xóa danh mục
+                    </button>
+                  </div>
+                </details>
+              </span>
             </div>
           )
         )}

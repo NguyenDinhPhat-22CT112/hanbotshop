@@ -109,6 +109,14 @@ export default async function AllProductsCollectionPage({ searchParams }: PagePr
 
   const products = result.data;
   const meta = result.meta;
+  const categoryPlacement = filters.tags?.some((tag) => tag.toLowerCase() === 'resin')
+    ? 'RESIN'
+    : filters.availability === 'ORDER'
+      ? 'ORDER'
+      : null;
+  const visibleCategories = categoryPlacement
+    ? categories.filter((category) => category.placement === 'BOTH' || category.placement === categoryPlacement)
+    : categories;
   const catalogState = getCatalogViewState(catalogUnavailable, products.length);
   const activeTagNames = (filters.tags ?? []).map((tagSlug) => {
     return filterOptions?.tags.find((tag) => tag.slug === tagSlug)?.name ?? tagSlug;
@@ -125,7 +133,7 @@ export default async function AllProductsCollectionPage({ searchParams }: PagePr
 
       <div className="nz-collection-container">
         <CollectionClientNZ
-          initialCategories={categories}
+          initialCategories={visibleCategories}
           initialFilterOptions={filterOptions}
           currentFilters={filters}
         />

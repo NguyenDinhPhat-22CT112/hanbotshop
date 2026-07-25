@@ -9,7 +9,7 @@ import { CartService } from './cart.service';
  * 
  * Tests comprehensive cart operations:
  * - Cart initialization (auto-create on first access)
- * - Add item (new item vs quantity increment for existing)
+ * - Add item (new item vs silently skip existing)
  * - Update item quantity
  * - Remove item
  * - Product validation (active products only)
@@ -85,8 +85,8 @@ describe('CartService', () => {
         assert.ok(itemCreated);
     });
 
-    it('addCartItem increments quantity when product already in cart', async () => {
-        let updatedQuantity = 0;
+    it('addCartItem does not change quantity when product already exists', async () => {
+        let updateCalled = false;
         const existingItem = mockCartItem('item1', 'prod1', null, 3, '100000');
 
         prisma.product.findUnique = async () => mockActiveProduct('prod1');
@@ -95,17 +95,62 @@ describe('CartService', () => {
             userId: 'user1',
             items: [existingItem]
         });
-        prisma.cartItem.update = async (args: any) => {
-            updatedQuantity = args.data.quantity;
-            return { ...existingItem, quantity: updatedQuantity };
+        prisma.cartItem.update = async () => {
+            updateCalled = true;
+            return existingItem;
         };
 
-        await service.addCartItem('user1', {
+        const result = await service.addCartItem('user1', {
             productId: 'prod1',
             quantity: 2
         });
 
-        assert.equal(updatedQuantity, 5); // 3 + 2
+        assert.equal(updateCalled, false);
+        assert.equal(result.itemAdded, false);
+        assert.equal(result.items[0].quantity, 3);
+    });
+
+    it('mergeGuestCart creates only valid items that are not already present', async () => {
+        const existingItem = mockCartItem('item1', 'prod1', null, 2, '100000');
+        const createdProducts: string[] = [];
+        let cartReads = 0;
+
+        prisma.cart.upsert = async () => {
+            cartReads += 1;
+            return {
+                id: 'cart1',
+                userId: 'user1',
+                items: cartReads === 1
+                    ? [existingItem]
+                    : [
+                        existingItem,
+                        ...createdProducts.map((productId, index) =>
+                            mockCartItem(`created-${index}`, productId, null, 1, '100000')
+                        )
+                    ]
+            };
+        };
+        prisma.product.findUnique = async ({ where }: any) =>
+            where.id === 'inactive'
+                ? { ...mockActiveProduct('inactive'), status: ProductStatus.ARCHIVED }
+                : mockActiveProduct(where.id);
+        prisma.cartItem.create = async ({ data }: any) => {
+            createdProducts.push(data.productId);
+            return { id: `created-${createdProducts.length}`, ...data };
+        };
+
+        const result = await service.mergeGuestCart('user1', {
+            items: [
+                { productId: 'prod1', quantity: 5 },
+                { productId: 'prod2', quantity: 1 },
+                { productId: 'inactive', quantity: 1 }
+            ]
+        });
+
+        assert.deepEqual(createdProducts, ['prod2']);
+        assert.equal(result.mergedCount, 1);
+        assert.equal(result.skippedCount, 2);
+        assert.equal(result.items[0].quantity, 2);
     });
 
     it('addCartItem treats same product with different variants as separate items', async () => {
