@@ -4,8 +4,7 @@ import { getProducts } from '../lib/api';
 const categoryLinks=[
  {label:'Đặt trước',note:'Sản phẩm sắp phát hành',href:'/collections/tat-ca-san-pham?availability=PRE_ORDER'},
  {label:'Order',note:'Figure & statue theo yêu cầu',href:'/order'},
- {label:'Resin',note:'Mô hình resin sưu tầm',href:'/resin'},
- {label:'Bust',note:'Tượng bán thân',href:'/collections/tat-ca-san-pham?tags=bust'}
+ {label:'Resin',note:'Mô hình resin sưu tầm',href:'/resin'}
 ];
 
 export default async function HomePage(){

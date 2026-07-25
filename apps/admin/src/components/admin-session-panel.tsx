@@ -5,6 +5,9 @@ import { adminCheck, clearAdminToken } from '../lib/browser-api';
 
 type SessionState = 'checking' | 'authenticated' | 'anonymous';
 
+const ADMIN_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const ADMIN_ACTIVITY_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+
 export function AdminSessionPanel() {
   const [sessionState, setSessionState] = useState<SessionState>('checking');
   const [email, setEmail] = useState('');
@@ -35,6 +38,43 @@ export function AdminSessionPanel() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (sessionState !== 'authenticated') {
+      return;
+    }
+
+    let idleTimer: ReturnType<typeof setTimeout>;
+    let lastServerTouchAt = Date.now();
+
+    const expireSession = () => {
+      clearAdminToken();
+      setEmail('');
+      setSessionState('anonymous');
+      window.location.replace('/login?reason=inactive');
+    };
+
+    const registerActivity = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(expireSession, ADMIN_IDLE_TIMEOUT_MS);
+
+      const now = Date.now();
+
+      if (now - lastServerTouchAt >= ADMIN_ACTIVITY_SYNC_INTERVAL_MS) {
+        lastServerTouchAt = now;
+        void adminCheck().catch(expireSession);
+      }
+    };
+
+    const activityEvents = ['pointerdown', 'keydown', 'scroll', 'touchstart'] as const;
+    activityEvents.forEach((eventName) => window.addEventListener(eventName, registerActivity, { passive: true }));
+    registerActivity();
+
+    return () => {
+      clearTimeout(idleTimer);
+      activityEvents.forEach((eventName) => window.removeEventListener(eventName, registerActivity));
+    };
+  }, [sessionState]);
 
   function logout() {
     clearAdminToken();

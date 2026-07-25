@@ -6,6 +6,7 @@ import { AuthService } from './auth.service';
 
 type TestUser = {
   id: string; email: string; passwordHash: string; name: string; role: UserRole; status: UserStatus;
+  adminSessionId?: string | null; adminSessionLastActiveAt?: Date | null;
 };
 
 const activeUser: TestUser = {
@@ -15,11 +16,17 @@ const activeUser: TestUser = {
 
 function authHarness(options?: { user?: TestUser | null; passwordMatches?: boolean }) {
   const audits: Array<Record<string, unknown>> = [];
+  const updates: Array<Record<string, unknown>> = [];
+  const signedPayloads: Array<Record<string, unknown>> = [];
   const prisma = {
     user: {
       findUnique: async () => options && 'user' in options ? options.user : activeUser,
       create: async ({ data }: { data: Record<string, unknown> }) => ({ ...activeUser, ...data }),
-      update: async () => activeUser
+      update: async ({ data }: { data: Record<string, unknown> }) => {
+        updates.push(data);
+        return options?.user ?? activeUser;
+      },
+      updateMany: async () => ({ count: 1 })
     }
   };
   const password = {
@@ -27,14 +34,22 @@ function authHarness(options?: { user?: TestUser | null; passwordMatches?: boole
     verifyPassword: async () => options?.passwordMatches ?? true
   };
   const token = {
-    signAccessToken: () => 'signed-access-token',
+    signAccessToken: (payload: Record<string, unknown>) => {
+      signedPayloads.push(payload);
+      return 'signed-access-token';
+    },
     signPasswordResetToken: () => 'reset-token',
     verifyPasswordResetToken: () => ({ sub: activeUser.id, email: activeUser.email }),
     isPasswordResetTokenCurrent: () => true
   };
   const config = { get: () => undefined };
   const audit = { record: async (entry: Record<string, unknown>) => { audits.push(entry); return entry; } };
-  return { service: new AuthService(prisma as never, password as never, token as never, config as never, audit as never), audits };
+  return {
+    service: new AuthService(prisma as never, password as never, token as never, config as never, audit as never),
+    audits,
+    updates,
+    signedPayloads
+  };
 }
 
 test('login normalizes email, returns token internally, and audits success', async () => {
@@ -59,6 +74,41 @@ test('login rejects a disabled account without verifying password', async () => 
 
   await assert.rejects(() => service.login({ email: disabled.email, password: 'password123' }), UnauthorizedException);
   assert.equal(audits[0].action, 'LOGIN_FAILED');
+});
+
+test('admin login creates a new server-side session and embeds it in the token', async () => {
+  const admin = { ...activeUser, role: UserRole.ADMIN };
+  const { service, updates, signedPayloads } = authHarness({ user: admin });
+
+  await service.login({ email: admin.email, password: 'password123' });
+
+  assert.equal(typeof updates[0].adminSessionId, 'string');
+  assert.ok(updates[0].adminSessionLastActiveAt instanceof Date);
+  assert.equal(signedPayloads[0].sessionId, updates[0].adminSessionId);
+});
+
+test('admin session validation rejects a token replaced by a newer login', async () => {
+  const admin = {
+    ...activeUser,
+    role: UserRole.ADMIN,
+    adminSessionId: 'new-session',
+    adminSessionLastActiveAt: new Date()
+  };
+  const { service } = authHarness({ user: admin });
+
+  await assert.rejects(() => service.findCurrentUser(admin.id, 'old-session'), UnauthorizedException);
+});
+
+test('admin session validation rejects a session idle for more than 30 minutes', async () => {
+  const admin = {
+    ...activeUser,
+    role: UserRole.ADMIN,
+    adminSessionId: 'admin-session',
+    adminSessionLastActiveAt: new Date(Date.now() - 31 * 60 * 1000)
+  };
+  const { service } = authHarness({ user: admin });
+
+  await assert.rejects(() => service.findCurrentUser(admin.id, admin.adminSessionId), UnauthorizedException);
 });
 
 test('registration rejects an existing email', async () => {

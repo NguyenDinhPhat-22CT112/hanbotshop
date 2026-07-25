@@ -124,10 +124,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Logout', description: 'Invalidate current session' })
   @ApiResponse({ status: 200, description: 'Successfully logged out' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  logout(@Res({ passthrough: true }) response: CookieResponse) {
+  logout(
+    @CurrentUser() user: AuthenticatedUser,
+    @Res({ passthrough: true }) response: CookieResponse
+  ) {
     clearSessionCookies(response);
 
-    return this.authService.logout();
+    return this.authService.logout(user.id, user.role);
   }
 
   @Get('me')

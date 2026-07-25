@@ -8,6 +8,7 @@ type TokenPayload = {
   sub: string;
   email: string;
   role: UserRole;
+  sessionId?: string;
   exp: number;
 };
 

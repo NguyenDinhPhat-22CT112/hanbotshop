@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AuditAction, UserStatus } from '@prisma/client';
+import { AuditAction, UserRole, UserStatus } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { AuditService } from '../../../common/audit.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto } from '../dto/auth.dto';
@@ -136,28 +137,92 @@ export class AuthService {
     return this.authResponse(updatedUser);
   }
 
-  async findCurrentUser(userId: string) {
+  async findCurrentUser(userId: string, sessionId?: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: this.userSelect()
+      select: {
+        ...this.userSelect(),
+        adminSessionId: true,
+        adminSessionLastActiveAt: true
+      }
     });
 
     if (!user || user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException('User is not active.');
     }
 
-    return user;
+    if (user.role === 'ADMIN') {
+      const idleTimeoutSeconds = this.readPositiveInt(
+        this.configService.get<string>('ADMIN_IDLE_TIMEOUT_SECONDS'),
+        60 * 30
+      );
+      const idleDeadline = Date.now() - idleTimeoutSeconds * 1000;
+
+      if (
+        !sessionId ||
+        user.adminSessionId !== sessionId ||
+        !user.adminSessionLastActiveAt ||
+        user.adminSessionLastActiveAt.getTime() < idleDeadline
+      ) {
+        throw new UnauthorizedException('Admin session expired or was replaced by a newer login.');
+      }
+
+      const refreshed = await this.prisma.user.updateMany({
+        where: {
+          id: user.id,
+          adminSessionId: sessionId
+        },
+        data: {
+          adminSessionLastActiveAt: new Date()
+        }
+      });
+
+      if (refreshed.count !== 1) {
+        throw new UnauthorizedException('Admin session was replaced by a newer login.');
+      }
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      status: user.status
+    };
   }
 
-  logout() {
+  async logout(userId: string, role: string) {
+    if (role === 'ADMIN') {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          adminSessionId: null,
+          adminSessionLastActiveAt: null
+        }
+      });
+    }
+
     return { success: true };
   }
 
-  private authResponse(user: Awaited<ReturnType<AuthService['findCurrentUser']>>) {
+  private async authResponse(user: { id: string; email: string; name: string | null; role: UserRole }) {
+    const sessionId = user.role === 'ADMIN' ? randomUUID() : undefined;
+
+    if (sessionId) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          adminSessionId: sessionId,
+          adminSessionLastActiveAt: new Date()
+        }
+      });
+    }
+
     const accessToken = this.tokenService.signAccessToken({
       sub: user.id,
       email: user.email,
-      role: user.role
+      role: user.role,
+      ...(sessionId ? { sessionId } : {})
     });
 
     return {
@@ -180,6 +245,12 @@ export class AuthService {
     }
 
     return normalizedEmail;
+  }
+
+  private readPositiveInt(value: string | undefined, fallback: number) {
+    const parsed = Number(value);
+
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
   }
 
   private buildPasswordResetUrl(token: string) {

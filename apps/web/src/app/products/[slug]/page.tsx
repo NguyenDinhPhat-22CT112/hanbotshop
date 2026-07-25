@@ -13,6 +13,9 @@ type ProductDetailPageProps = {
   };
 };
 
+// The API container is available at runtime, not while the web image is built.
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({ params }: ProductDetailPageProps): Promise<Metadata> {
   const product = await getProduct(params.slug);
   if (!product) return { title: 'Không tìm thấy sản phẩm', robots: { index: false, follow: false } };
@@ -23,12 +26,6 @@ export async function generateMetadata({ params }: ProductDetailPageProps): Prom
     alternates: { canonical: `/products/${product.slug}` },
     openGraph: { type: 'website', title: product.name, description, images: product.imageUrl ? [{ url: product.imageUrl, alt: product.name }] : undefined }
   };
-}
-
-export async function generateStaticParams() {
-  const products = await getProducts({ pageSize: 100 }).catch(() => ({ data: [] }));
-
-  return products.data.map((product) => ({ slug: product.slug }));
 }
 
 export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
