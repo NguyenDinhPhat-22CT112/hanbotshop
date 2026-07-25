@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { adminFetch } from '../lib/browser-api';
+import { createProductSlug } from '../lib/product-slug';
 import { ProductImageUploader, type UploadedProductImage } from './product-image-uploader';
 
 function splitTags(value: FormDataEntryValue | null) {
@@ -15,6 +16,8 @@ export function ProductForm() {
   const [message, setMessage] = useState('');
   const [images, setImages] = useState<UploadedProductImage[]>([]);
   const [productName, setProductName] = useState('');
+  const [slug, setSlug] = useState('');
+  const [slugWasEdited, setSlugWasEdited] = useState(false);
   const [productType, setProductType] = useState<'ORDER' | 'RESIN'>('ORDER');
   const [availability, setAvailability] = useState('ORDER');
   const [status, setStatus] = useState('ACTIVE');
@@ -65,11 +68,30 @@ export function ProductForm() {
       </div>
       <label>
         Tên sản phẩm
-        <input name="name" required value={productName} onChange={(event) => setProductName(event.target.value)} />
+        <input
+          name="name"
+          required
+          value={productName}
+          onChange={(event) => {
+            const nextName = event.target.value;
+            setProductName(nextName);
+            if (!slugWasEdited) setSlug(createProductSlug(nextName));
+          }}
+        />
       </label>
       <label>
         Slug
-        <input name="slug" required />
+        <input
+          name="slug"
+          required
+          value={slug}
+          onChange={(event) => {
+            const nextSlug = event.target.value;
+            setSlug(nextSlug);
+            setSlugWasEdited(nextSlug !== createProductSlug(productName));
+          }}
+        />
+        <small>Tự tạo theo tên sản phẩm; bạn vẫn có thể sửa lại.</small>
       </label>
       <label>
         Studio / thương hiệu
@@ -98,7 +120,7 @@ export function ProductForm() {
         <input name="basePrice" placeholder="2450000" />
       </label>
       <label>
-        Giá so sánh
+        {productType === 'ORDER' ? 'Giá cọc' : 'Giá so sánh'}
         <input name="compareAtPrice" placeholder="2990000" />
       </label>
       <label>

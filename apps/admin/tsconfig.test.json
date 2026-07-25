@@ -9,5 +9,5 @@
     "moduleResolution": "Node",
     "plugins": []
   },
-  "include": ["src/lib/admin-navigation.ts", "src/lib/frontend.spec.ts"]
+  "include": ["src/lib/admin-navigation.ts", "src/lib/product-slug.ts", "src/lib/frontend.spec.ts"]
 }
