@@ -1,7 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AuditAction, UserRole, UserStatus } from '@prisma/client';
-import { randomUUID } from 'node:crypto';
 import { AuditService } from '../../../common/audit.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto } from '../dto/auth.dto';
@@ -137,151 +136,33 @@ export class AuthService {
     return this.authResponse(updatedUser);
   }
 
-  async findCurrentUser(userId: string, sessionId?: string) {
+  async findCurrentUser(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        ...this.userSelect(),
-        adminSessionId: true,
-        adminSessionLastActiveAt: true,
-        adminPreviousSessionId: true,
-        adminPreviousSessionUntil: true
-      }
+      select: this.userSelect()
     });
 
     if (!user || user.status !== UserStatus.ACTIVE) {
       throw new UnauthorizedException('User is not active.');
     }
 
-    if (user.role === 'ADMIN') {
-      const idleTimeoutSeconds = this.readPositiveInt(
-        this.configService.get<string>('ADMIN_IDLE_TIMEOUT_SECONDS'),
-        60 * 30
-      );
-      const idleDeadline = Date.now() - idleTimeoutSeconds * 1000;
-      const isCurrentSession = Boolean(sessionId && user.adminSessionId === sessionId);
-      const isPreviousSessionInGrace = Boolean(
-        sessionId &&
-        user.adminPreviousSessionId === sessionId &&
-        user.adminPreviousSessionUntil &&
-        user.adminPreviousSessionUntil.getTime() >= Date.now()
-      );
-
-      if (
-        !sessionId ||
-        (!isCurrentSession && !isPreviousSessionInGrace) ||
-        (isCurrentSession &&
-          (!user.adminSessionLastActiveAt || user.adminSessionLastActiveAt.getTime() < idleDeadline))
-      ) {
-        throw new UnauthorizedException('Admin session expired or was replaced by a newer login.');
-      }
-
-      // The outgoing device may finish its work during the handoff window, but
-      // it must not extend either its own grace period or the new session's idle timer.
-      if (isPreviousSessionInGrace) {
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          status: user.status
-        };
-      }
-
-      const refreshed = await this.prisma.user.updateMany({
-        where: {
-          id: user.id,
-          adminSessionId: sessionId
-        },
-        data: {
-          adminSessionLastActiveAt: new Date()
-        }
-      });
-
-      if (refreshed.count !== 1) {
-        throw new UnauthorizedException('Admin session was replaced by a newer login.');
-      }
-    }
-
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      status: user.status
-    };
+    return user;
   }
 
-  async logout(userId: string, role: string, sessionId?: string) {
-    if (role === 'ADMIN' && sessionId) {
-      const currentSession = await this.prisma.user.updateMany({
-        where: { id: userId, adminSessionId: sessionId },
-        data: {
-          adminSessionId: null,
-          adminSessionLastActiveAt: null,
-          adminPreviousSessionId: null,
-          adminPreviousSessionUntil: null
-        }
-      });
-
-      if (currentSession.count === 0) {
-        await this.prisma.user.updateMany({
-          where: { id: userId, adminPreviousSessionId: sessionId },
-          data: {
-            adminPreviousSessionId: null,
-            adminPreviousSessionUntil: null
-          }
-        });
-      }
-    }
-
+  logout() {
     return { success: true };
   }
 
-  private async authResponse(user: {
+  private authResponse(user: {
     id: string;
     email: string;
     name: string | null;
     role: UserRole;
-    adminSessionId?: string | null;
-    adminSessionLastActiveAt?: Date | null;
   }) {
-    const sessionId = user.role === 'ADMIN' ? randomUUID() : undefined;
-
-    if (sessionId) {
-      const now = new Date();
-      const idleTimeoutSeconds = this.readPositiveInt(
-        this.configService.get<string>('ADMIN_IDLE_TIMEOUT_SECONDS'),
-        60 * 30
-      );
-      const replacementGraceSeconds = this.readPositiveInt(
-        this.configService.get<string>('ADMIN_SESSION_REPLACEMENT_GRACE_SECONDS'),
-        10
-      );
-      const previousSessionIsActive = Boolean(
-        user.adminSessionId &&
-        user.adminSessionLastActiveAt &&
-        user.adminSessionLastActiveAt.getTime() >= now.getTime() - idleTimeoutSeconds * 1000
-      );
-
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          adminSessionId: sessionId,
-          adminSessionLastActiveAt: now,
-          adminPreviousSessionId: previousSessionIsActive ? user.adminSessionId : null,
-          adminPreviousSessionUntil: previousSessionIsActive
-            ? new Date(now.getTime() + replacementGraceSeconds * 1000)
-            : null
-        }
-      });
-    }
-
     const accessToken = this.tokenService.signAccessToken({
       sub: user.id,
       email: user.email,
-      role: user.role,
-      ...(sessionId ? { sessionId } : {})
+      role: user.role
     });
 
     return {
@@ -304,12 +185,6 @@ export class AuthService {
     }
 
     return normalizedEmail;
-  }
-
-  private readPositiveInt(value: string | undefined, fallback: number) {
-    const parsed = Number(value);
-
-    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
   }
 
   private buildPasswordResetUrl(token: string) {

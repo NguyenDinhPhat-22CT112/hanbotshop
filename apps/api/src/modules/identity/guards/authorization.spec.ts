@@ -25,40 +25,36 @@ test('AuthGuard authenticates an HttpOnly cookie session and attaches current us
   assert.equal((request as { currentUser?: { role: UserRole } }).currentUser?.role, UserRole.ADMIN);
 });
 
-test('AuthGuard skips a stale duplicate cookie and accepts the newer admin session', async () => {
+test('AuthGuard skips an invalid duplicate cookie and accepts the valid one', async () => {
   const verifiedTokens: string[] = [];
-  const checkedSessions: Array<string | undefined> = [];
+  const checkedUserIds: string[] = [];
   const request = {
     headers: {
-      cookie: 'hanbotorder_session=stale-jwt; other=1; hanbotorder_session=current-jwt'
+      cookie: 'hanbotorder_session=invalid-jwt; other=1; hanbotorder_session=valid-jwt'
     }
   };
   const authService = {
-    findCurrentUser: async (_userId: string, sessionId?: string) => {
-      checkedSessions.push(sessionId);
-
-      if (sessionId === 'stale-jwt') {
-        throw new UnauthorizedException('Admin session was replaced by a newer login.');
-      }
-
+    findCurrentUser: async (userId: string) => {
+      checkedUserIds.push(userId);
       return { id: 'admin-1', email: 'admin@example.com', name: 'Admin', role: UserRole.ADMIN };
     }
   };
   const tokenService = {
     verifyAccessToken: (token: string) => {
       verifiedTokens.push(token);
-      return { sub: 'admin-1', sessionId: token };
+
+      if (token === 'invalid-jwt') {
+        throw new UnauthorizedException('Invalid access token.');
+      }
+
+      return { sub: 'admin-1' };
     }
   };
   const guard = new AuthGuard(authService as never, tokenService as never);
 
   assert.equal(await guard.canActivate(contextFor(request) as never), true);
-  assert.deepEqual(verifiedTokens, ['stale-jwt', 'current-jwt']);
-  assert.deepEqual(checkedSessions, ['stale-jwt', 'current-jwt']);
-  assert.equal(
-    (request as { currentSessionId?: string }).currentSessionId,
-    'current-jwt'
-  );
+  assert.deepEqual(verifiedTokens, ['invalid-jwt', 'valid-jwt']);
+  assert.deepEqual(checkedUserIds, ['admin-1']);
 });
 
 test('AuthGuard keeps Bearer support for internal API clients', async () => {

@@ -19,7 +19,7 @@ export class AuthGuard implements CanActivate {
     for (const token of tokens) {
       try {
         const payload = this.tokenService.verifyAccessToken(token);
-        const user = await this.authService.findCurrentUser(payload.sub, payload.sessionId);
+        const user = await this.authService.findCurrentUser(payload.sub);
 
         request.currentUser = {
           id: user.id,
@@ -27,8 +27,6 @@ export class AuthGuard implements CanActivate {
           name: user.name,
           role: user.role
         };
-        request.currentSessionId = payload.sessionId;
-
         return true;
       } catch (error) {
         if (!(error instanceof UnauthorizedException)) {

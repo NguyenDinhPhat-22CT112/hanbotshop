@@ -19,7 +19,6 @@ import type { AuthenticatedUser } from './types/authenticated-user';
 type ClientRequest = {
   ip?: string;
   socket?: { remoteAddress?: string };
-  currentSessionId?: string;
 };
 
 type CookieResponse = Parameters<typeof setSessionCookies>[0];
@@ -125,14 +124,10 @@ export class AuthController {
   @ApiOperation({ summary: 'Logout', description: 'Invalidate current session' })
   @ApiResponse({ status: 200, description: 'Successfully logged out' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  logout(
-    @CurrentUser() user: AuthenticatedUser,
-    @Req() request: ClientRequest,
-    @Res({ passthrough: true }) response: CookieResponse
-  ) {
+  logout(@Res({ passthrough: true }) response: CookieResponse) {
     clearSessionCookies(response);
 
-    return this.authService.logout(user.id, user.role, request.currentSessionId);
+    return this.authService.logout();
   }
 
   @Get('me')

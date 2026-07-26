@@ -10,5 +10,4 @@ export type AuthenticatedUser = {
 export type AuthRequest = {
   headers: Record<string, string | string[] | undefined>;
   currentUser?: AuthenticatedUser;
-  currentSessionId?: string;
 };
