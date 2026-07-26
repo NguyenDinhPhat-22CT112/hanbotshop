@@ -13,44 +13,60 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<AuthRequest>();
-    const token = this.extractToken(request);
-    const payload = this.tokenService.verifyAccessToken(token);
-    const user = await this.authService.findCurrentUser(payload.sub, payload.sessionId);
+    const tokens = this.extractTokens(request);
+    let lastUnauthorizedError: UnauthorizedException | undefined;
 
-    request.currentUser = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role
-    };
-    request.currentSessionId = payload.sessionId;
+    for (const token of tokens) {
+      try {
+        const payload = this.tokenService.verifyAccessToken(token);
+        const user = await this.authService.findCurrentUser(payload.sub, payload.sessionId);
 
-    return true;
+        request.currentUser = {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        };
+        request.currentSessionId = payload.sessionId;
+
+        return true;
+      } catch (error) {
+        if (!(error instanceof UnauthorizedException)) {
+          throw error;
+        }
+
+        lastUnauthorizedError = error;
+      }
+    }
+
+    throw lastUnauthorizedError ?? new UnauthorizedException('Invalid authentication session.');
   }
 
-  private extractToken(request: AuthRequest) {
+  private extractTokens(request: AuthRequest) {
     const authorization = request.headers.authorization;
     const headerValue = Array.isArray(authorization) ? authorization[0] : authorization;
 
     if (headerValue?.startsWith('Bearer ')) {
-      return headerValue.slice('Bearer '.length).trim();
+      return [headerValue.slice('Bearer '.length).trim()];
     }
 
     const cookieHeader = request.headers.cookie;
     const serializedCookies = Array.isArray(cookieHeader) ? cookieHeader[0] : cookieHeader;
-    const token = this.readCookie(serializedCookies, sessionCookieName);
+    const tokens = this.readCookies(serializedCookies, sessionCookieName);
 
-    if (!token) {
+    if (tokens.length === 0) {
       throw new UnauthorizedException('Missing authentication session.');
     }
 
-    return token;
+    return tokens;
   }
 
-  private readCookie(cookieHeader: string | undefined, name: string) {
+  private readCookies(cookieHeader: string | undefined, name: string) {
     if (!cookieHeader) {
-      return undefined;
+      return [];
     }
+
+    const values: string[] = [];
 
     for (const part of cookieHeader.split(';')) {
       const separator = part.indexOf('=');
@@ -62,12 +78,12 @@ export class AuthGuard implements CanActivate {
       const value = part.slice(separator + 1).trim();
 
       try {
-        return decodeURIComponent(value);
+        values.push(decodeURIComponent(value));
       } catch {
-        return undefined;
+        // Ignore a malformed duplicate and continue looking for a valid session cookie.
       }
     }
 
-    return undefined;
+    return [...new Set(values)];
   }
 }

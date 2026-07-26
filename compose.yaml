@@ -13,6 +13,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    ports: ["127.0.0.1:5433:5432"]
     networks: [backend]
 
   api:
@@ -22,7 +23,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-production}
       PORT: 3001
       DATABASE_URL: postgresql://${POSTGRES_USER:-hanbotorder}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hanbotorder}?schema=public
       LOG_DIR: /app/logs

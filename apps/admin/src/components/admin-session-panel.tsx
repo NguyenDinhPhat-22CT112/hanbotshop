@@ -48,11 +48,11 @@ export function AdminSessionPanel() {
     let idleTimer: ReturnType<typeof setTimeout>;
     let lastServerTouchAt = Date.now();
 
-    const expireSession = (reason: 'inactive' | 'replaced' = 'inactive') => {
+    const expireSession = () => {
       clearAdminToken();
       setEmail('');
       setSessionState('anonymous');
-      window.location.replace(`/login?reason=${reason}`);
+      window.location.replace('/login');
     };
 
     const registerActivity = () => {
@@ -68,7 +68,7 @@ export function AdminSessionPanel() {
     };
 
     const replacementCheckTimer = setInterval(() => {
-      void adminCheck().catch(() => expireSession('replaced'));
+      void adminCheck().catch(expireSession);
     }, ADMIN_SESSION_REPLACEMENT_CHECK_INTERVAL_MS);
 
     const activityEvents = ['pointerdown', 'keydown', 'scroll', 'touchstart'] as const;

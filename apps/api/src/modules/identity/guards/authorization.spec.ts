@@ -25,6 +25,42 @@ test('AuthGuard authenticates an HttpOnly cookie session and attaches current us
   assert.equal((request as { currentUser?: { role: UserRole } }).currentUser?.role, UserRole.ADMIN);
 });
 
+test('AuthGuard skips a stale duplicate cookie and accepts the newer admin session', async () => {
+  const verifiedTokens: string[] = [];
+  const checkedSessions: Array<string | undefined> = [];
+  const request = {
+    headers: {
+      cookie: 'hanbotorder_session=stale-jwt; other=1; hanbotorder_session=current-jwt'
+    }
+  };
+  const authService = {
+    findCurrentUser: async (_userId: string, sessionId?: string) => {
+      checkedSessions.push(sessionId);
+
+      if (sessionId === 'stale-jwt') {
+        throw new UnauthorizedException('Admin session was replaced by a newer login.');
+      }
+
+      return { id: 'admin-1', email: 'admin@example.com', name: 'Admin', role: UserRole.ADMIN };
+    }
+  };
+  const tokenService = {
+    verifyAccessToken: (token: string) => {
+      verifiedTokens.push(token);
+      return { sub: 'admin-1', sessionId: token };
+    }
+  };
+  const guard = new AuthGuard(authService as never, tokenService as never);
+
+  assert.equal(await guard.canActivate(contextFor(request) as never), true);
+  assert.deepEqual(verifiedTokens, ['stale-jwt', 'current-jwt']);
+  assert.deepEqual(checkedSessions, ['stale-jwt', 'current-jwt']);
+  assert.equal(
+    (request as { currentSessionId?: string }).currentSessionId,
+    'current-jwt'
+  );
+});
+
 test('AuthGuard keeps Bearer support for internal API clients', async () => {
   let verifiedToken = '';
   const request = { headers: { authorization: 'Bearer api-token' } };

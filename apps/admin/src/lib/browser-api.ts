@@ -1,6 +1,8 @@
 'use client';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+// Keep browser authentication same-origin. Next.js proxies this path to the
+// internal API so cookies work for localhost, 127.0.0.1 and production domains.
+const apiUrl = '/api/v1';
 
 type AdminUser = {
   id?: string;
