@@ -27,5 +27,5 @@ function ProductShowcase({title,eyebrow,href,products,unavailable,tone='order'}:
 }
 
 function HomeProductCard({product}:{product:ProductCardModel}){
- return <article className="home-product-card"><a className={`home-product-image product-image--${product.imageTone}`} href={`/products/${product.slug}`}>{product.imageUrl?<img src={product.imageUrl} alt={product.name} loading="lazy"/>:<span>{product.category}</span>}<i>{product.status==='PRE_ORDER'?'Pre-order':product.status==='ORDER'?'Order':product.status==='CONTACT'?'Liên hệ':product.status}</i></a><p>{product.studio}</p><h3><a href={`/products/${product.slug}`}>{product.name}</a></h3><div>{product.compareAtPrice?<del>{product.compareAtPrice}</del>:null}<strong>{product.price}</strong></div></article>
+ return <article className="home-product-card"><a className={`home-product-image product-image--${product.imageTone}`} href={`/products/${product.slug}`}>{product.imageUrl?<img src={product.imageUrl} alt={product.name} loading="lazy"/>:<span>{product.category}</span>}<i>{product.status==='PRE_ORDER'?'Pre-order':product.status==='ORDER'?'Order':product.status==='CONTACT'?'Liên hệ':product.status}</i></a><p>{product.studio}</p><h3><a href={`/products/${product.slug}`}>{product.name}</a></h3><div><strong>{product.price}</strong></div></article>
 }

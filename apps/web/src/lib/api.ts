@@ -174,12 +174,15 @@ async function safeFetch<T>(path: string): Promise<T | null> {
 }
 
 function mapProduct(product: ApiProduct): ProductCardModel {
+  const pricing = getDisplayPricing(product);
+
   return {
     id: product.id,
     name: product.name,
     slug: product.slug,
     studio: product.studio ?? 'Hanbotorder',
-    price: product.basePrice ? formatVnd(product.basePrice) : 'Liên hệ shop',
+    price: pricing.fullPrice ? formatVnd(pricing.fullPrice) : 'Liên hệ shop',
+    depositPrice: pricing.depositPrice ? formatVnd(pricing.depositPrice) : undefined,
     compareAtPrice: product.compareAtPrice ? formatVnd(product.compareAtPrice) : undefined,
     status: product.availability,
     paymentRequirement: product.paymentRequirement,
@@ -194,6 +197,24 @@ function mapProduct(product: ApiProduct): ProductCardModel {
     tags: product.tags?.map((tag) => tag.name) ?? [],
     tagLinks: product.tags?.map((tag) => ({ name: tag.name, slug: tag.slug })) ?? [],
     variants: product.variants ?? []
+  };
+}
+
+function getDisplayPricing(product: ApiProduct) {
+  if (product.availability !== 'ORDER') {
+    return {
+      fullPrice: product.basePrice,
+      depositPrice: null
+    };
+  }
+
+  const prices = [product.basePrice, product.compareAtPrice]
+    .filter((price): price is string => Boolean(price))
+    .sort((left, right) => Number(right) - Number(left));
+
+  return {
+    fullPrice: prices[0] ?? null,
+    depositPrice: prices.length > 1 && Number(prices[0]) !== Number(prices[1]) ? prices[1] : null
   };
 }
 

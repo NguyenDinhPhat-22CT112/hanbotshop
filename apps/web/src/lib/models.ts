@@ -6,6 +6,7 @@ export type ProductCardModel = {
   slug: string;
   studio: string;
   price: string;
+  depositPrice?: string;
   compareAtPrice?: string;
   status: ProductAvailability;
   paymentRequirement: 'FULL' | 'DEPOSIT';

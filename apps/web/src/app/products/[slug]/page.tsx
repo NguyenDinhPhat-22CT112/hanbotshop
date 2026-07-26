@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { ProductPurchaseActions } from '../../../components/product-purchase-actions';
 import { ProductGallery } from '../../../components/product-gallery';
+import { ProductPaymentSelector } from '../../../components/product-payment-selector';
 import { ResinPrintTemplate } from '../../../components/resin-print-template';
 import { getProduct, getProducts } from '../../../lib/api';
 import { labelOf } from '../../../lib/labels';
@@ -36,7 +37,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
   }
 
   const displayPrice = product.price.replace(' VND', 'đ');
-  const depositPrice = product.paymentRequirement === 'DEPOSIT' ? estimateDeposit(product.price, product.depositPercent) : null;
+  const depositPrice = product.depositPrice?.replace(' VND', 'đ')
+    ?? (product.paymentRequirement === 'DEPOSIT' ? estimateDeposit(product.price, product.depositPercent) : null);
   const tagLinks = product.tagLinks ?? (product.tags ?? []).map((tag) => ({ name: tag, slug: slugifyTag(tag) }));
   const relatedProducts = getRelatedProducts(product, products.data);
   const isResinTemplate = isResinProduct(product);
@@ -100,13 +102,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           <p className="studio">{product.studio}</p>
           <h1>{product.name}</h1>
 
-          <p className="detail-price">{displayPrice}</p>
-
-          <div className="payment-mode">
-            <strong>Thanh toán</strong>
-            <span className={product.paymentRequirement === 'FULL' ? 'selected' : ''}>Full</span>
-            <span className={product.paymentRequirement === 'DEPOSIT' ? 'selected' : ''}>Cọc {product.depositPercent}%</span>
-          </div>
+          <ProductPaymentSelector fullPrice={displayPrice} depositPrice={depositPrice} />
 
           <ProductPurchaseActions
             productId={product.id}

@@ -19,7 +19,6 @@ export function ProductCard({ product }: ProductCardProps) {
         <Link href={`/products/${product.slug}`}>{product.name}</Link>
       </h3>
       <p className="price">
-        {product.compareAtPrice ? <span>{product.compareAtPrice}</span> : null}
         {product.price}
       </p>
       {product.variants?.length ? (

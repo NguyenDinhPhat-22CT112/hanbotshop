@@ -68,7 +68,6 @@ function CollectionProductCard({ product }: { product: ProductCardModel }) {
         </h3>
 
         <div className="nz-product-pricing">
-          {hasComparePrice && comparePrice ? <span className="nz-price-compare">{formatCollectionPrice(comparePrice)}</span> : null}
           <strong className="nz-price-current">{formatCollectionPrice(product.price)}</strong>
         </div>
       </div>
