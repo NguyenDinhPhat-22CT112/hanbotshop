@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 type TestUser = {
   id: string; email: string; passwordHash: string; name: string; role: UserRole; status: UserStatus;
   adminSessionId?: string | null; adminSessionLastActiveAt?: Date | null;
+  adminPreviousSessionId?: string | null; adminPreviousSessionUntil?: Date | null;
 };
 
 const activeUser: TestUser = {
@@ -14,9 +15,14 @@ const activeUser: TestUser = {
   role: UserRole.CUSTOMER, status: UserStatus.ACTIVE
 };
 
-function authHarness(options?: { user?: TestUser | null; passwordMatches?: boolean }) {
+function authHarness(options?: {
+  user?: TestUser | null;
+  passwordMatches?: boolean;
+  updateManyCounts?: number[];
+}) {
   const audits: Array<Record<string, unknown>> = [];
   const updates: Array<Record<string, unknown>> = [];
+  const updateManyCalls: Array<{ where: Record<string, unknown>; data: Record<string, unknown> }> = [];
   const signedPayloads: Array<Record<string, unknown>> = [];
   const prisma = {
     user: {
@@ -26,7 +32,10 @@ function authHarness(options?: { user?: TestUser | null; passwordMatches?: boole
         updates.push(data);
         return options?.user ?? activeUser;
       },
-      updateMany: async () => ({ count: 1 })
+      updateMany: async (args: { where: Record<string, unknown>; data: Record<string, unknown> }) => {
+        updateManyCalls.push(args);
+        return { count: options?.updateManyCounts?.shift() ?? 1 };
+      }
     }
   };
   const password = {
@@ -48,6 +57,7 @@ function authHarness(options?: { user?: TestUser | null; passwordMatches?: boole
     service: new AuthService(prisma as never, password as never, token as never, config as never, audit as never),
     audits,
     updates,
+    updateManyCalls,
     signedPayloads
   };
 }
@@ -87,6 +97,41 @@ test('admin login creates a new server-side session and embeds it in the token',
   assert.equal(signedPayloads[0].sessionId, updates[0].adminSessionId);
 });
 
+test('admin login keeps only the outgoing active session valid for 10 seconds', async () => {
+  const admin = {
+    ...activeUser,
+    role: UserRole.ADMIN,
+    adminSessionId: 'outgoing-session',
+    adminSessionLastActiveAt: new Date()
+  };
+  const { service, updates } = authHarness({ user: admin });
+
+  const beforeLogin = Date.now();
+  await service.login({ email: admin.email, password: 'password123' });
+  const graceUntil = updates[0].adminPreviousSessionUntil as Date;
+
+  assert.equal(updates[0].adminPreviousSessionId, admin.adminSessionId);
+  assert.ok(graceUntil.getTime() >= beforeLogin + 10_000);
+  assert.ok(graceUntil.getTime() <= Date.now() + 10_000);
+});
+
+test('outgoing admin session remains valid during replacement grace without refreshing activity', async () => {
+  const admin = {
+    ...activeUser,
+    role: UserRole.ADMIN,
+    adminSessionId: 'new-session',
+    adminSessionLastActiveAt: new Date(),
+    adminPreviousSessionId: 'outgoing-session',
+    adminPreviousSessionUntil: new Date(Date.now() + 10_000)
+  };
+  const { service, updateManyCalls } = authHarness({ user: admin });
+
+  const user = await service.findCurrentUser(admin.id, 'outgoing-session');
+
+  assert.equal(user.id, admin.id);
+  assert.equal(updateManyCalls.length, 0);
+});
+
 test('admin session validation rejects a token replaced by a newer login', async () => {
   const admin = {
     ...activeUser,
@@ -97,6 +142,42 @@ test('admin session validation rejects a token replaced by a newer login', async
   const { service } = authHarness({ user: admin });
 
   await assert.rejects(() => service.findCurrentUser(admin.id, 'old-session'), UnauthorizedException);
+});
+
+test('admin session validation rejects the outgoing token after replacement grace', async () => {
+  const admin = {
+    ...activeUser,
+    role: UserRole.ADMIN,
+    adminSessionId: 'new-session',
+    adminSessionLastActiveAt: new Date(),
+    adminPreviousSessionId: 'outgoing-session',
+    adminPreviousSessionUntil: new Date(Date.now() - 1)
+  };
+  const { service } = authHarness({ user: admin });
+
+  await assert.rejects(() => service.findCurrentUser(admin.id, 'outgoing-session'), UnauthorizedException);
+});
+
+test('logging out the outgoing device does not invalidate the newer admin session', async () => {
+  const admin = {
+    ...activeUser,
+    role: UserRole.ADMIN,
+    adminSessionId: 'new-session',
+    adminSessionLastActiveAt: new Date(),
+    adminPreviousSessionId: 'outgoing-session',
+    adminPreviousSessionUntil: new Date(Date.now() + 10_000)
+  };
+  const { service, updateManyCalls } = authHarness({ user: admin, updateManyCounts: [0, 1] });
+
+  await service.logout(admin.id, admin.role, 'outgoing-session');
+
+  assert.equal(updateManyCalls.length, 2);
+  assert.equal(updateManyCalls[0].where.adminSessionId, 'outgoing-session');
+  assert.equal(updateManyCalls[1].where.adminPreviousSessionId, 'outgoing-session');
+  assert.deepEqual(updateManyCalls[1].data, {
+    adminPreviousSessionId: null,
+    adminPreviousSessionUntil: null
+  });
 });
 
 test('admin session validation rejects a session idle for more than 30 minutes', async () => {

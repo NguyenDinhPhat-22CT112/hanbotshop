@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { adminLogin } from '../lib/browser-api';
 
-export function AdminLoginForm() {
-  const [message, setMessage] = useState('');
+export function AdminLoginForm({ initialMessage = '' }: { initialMessage?: string }) {
+  const [message, setMessage] = useState(initialMessage);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function submit(formData: FormData) {

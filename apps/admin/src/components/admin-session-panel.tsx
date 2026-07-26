@@ -7,6 +7,7 @@ type SessionState = 'checking' | 'authenticated' | 'anonymous';
 
 const ADMIN_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const ADMIN_ACTIVITY_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+const ADMIN_SESSION_REPLACEMENT_CHECK_INTERVAL_MS = 2 * 1000;
 
 export function AdminSessionPanel() {
   const [sessionState, setSessionState] = useState<SessionState>('checking');
@@ -47,11 +48,11 @@ export function AdminSessionPanel() {
     let idleTimer: ReturnType<typeof setTimeout>;
     let lastServerTouchAt = Date.now();
 
-    const expireSession = () => {
+    const expireSession = (reason: 'inactive' | 'replaced' = 'inactive') => {
       clearAdminToken();
       setEmail('');
       setSessionState('anonymous');
-      window.location.replace('/login?reason=inactive');
+      window.location.replace(`/login?reason=${reason}`);
     };
 
     const registerActivity = () => {
@@ -66,12 +67,17 @@ export function AdminSessionPanel() {
       }
     };
 
+    const replacementCheckTimer = setInterval(() => {
+      void adminCheck().catch(() => expireSession('replaced'));
+    }, ADMIN_SESSION_REPLACEMENT_CHECK_INTERVAL_MS);
+
     const activityEvents = ['pointerdown', 'keydown', 'scroll', 'touchstart'] as const;
     activityEvents.forEach((eventName) => window.addEventListener(eventName, registerActivity, { passive: true }));
     registerActivity();
 
     return () => {
       clearTimeout(idleTimer);
+      clearInterval(replacementCheckTimer);
       activityEvents.forEach((eventName) => window.removeEventListener(eventName, registerActivity));
     };
   }, [sessionState]);

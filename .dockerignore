@@ -10,5 +10,14 @@ node_modules
 .tmp
 .corepack
 .pnpm-store
+e2e
+playwright.config.ts
+**/*.spec.ts
+**/*.spec.tsx
+**/*.test.ts
+**/*.test.tsx
+**/tsconfig.test.json
+**/test-register.cjs
+**/clean-test-output.cjs
 *.log
 logs

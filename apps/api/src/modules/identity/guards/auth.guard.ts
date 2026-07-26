@@ -23,6 +23,7 @@ export class AuthGuard implements CanActivate {
       name: user.name,
       role: user.role
     };
+    request.currentSessionId = payload.sessionId;
 
     return true;
   }

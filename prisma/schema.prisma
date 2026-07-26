@@ -317,6 +317,8 @@ model User {
   status                   UserStatus     @default(ACTIVE)
   adminSessionId           String?
   adminSessionLastActiveAt DateTime?
+  adminPreviousSessionId    String?
+  adminPreviousSessionUntil DateTime?
   createdAt                DateTime       @default(now())
   updatedAt                DateTime       @updatedAt
   addresses                Address[]
