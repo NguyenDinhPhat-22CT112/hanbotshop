@@ -1,20 +1,39 @@
-FROM node:22-alpine AS build
+FROM node:22-alpine AS base
 WORKDIR /app
+ENV PNPM_HOME=/pnpm
+ENV PATH=$PNPM_HOME:$PATH
 RUN apk add --no-cache openssl
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
+
+FROM base AS build
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json eslint.config.mjs ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages ./packages
 COPY prisma ./prisma
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store && pnpm install --frozen-lockfile --filter @hanbotorder/api...
 COPY apps/api ./apps/api
-RUN pnpm prisma:generate && pnpm --filter @hanbotorder/api build
+RUN pnpm --filter @hanbotorder/api exec prisma generate --schema ../../prisma/schema.prisma \
+    && pnpm --filter @hanbotorder/api build
+
+FROM base AS production-dependencies
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/api/package.json apps/api/package.json
+COPY packages ./packages
+COPY prisma ./prisma
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
+    pnpm config set store-dir /pnpm/store \
+    && pnpm --filter @hanbotorder/api deploy --prod /prod/api
+RUN cp -R /app/prisma /prod/api/prisma \
+    && pnpm --dir /prod/api exec prisma generate --schema /prod/api/prisma/schema.prisma
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
-ENV NODE_ENV=production PORT=3001
+ENV NODE_ENV=production \
+    PORT=3001
 RUN apk add --no-cache openssl
-RUN corepack enable
-COPY --from=build /app /app
+COPY --from=production-dependencies /prod/api/node_modules ./apps/api/node_modules
+COPY --from=build /app/apps/api/dist ./apps/api/dist
+COPY --from=build /app/prisma ./prisma
 EXPOSE 3001
-CMD ["sh", "-c", "pnpm prisma migrate deploy --schema prisma/schema.prisma && node apps/api/dist/main.js"]
+CMD ["sh", "-c", "./apps/api/node_modules/.bin/prisma migrate deploy --schema prisma/schema.prisma && node apps/api/dist/main.js"]

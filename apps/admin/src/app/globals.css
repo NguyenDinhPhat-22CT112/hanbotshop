@@ -394,10 +394,6 @@ h1 {
   grid-template-columns: 1.5fr 1.1fr 1fr 1.2fr 0.65fr;
 }
 
-.users-row {
-  grid-template-columns: 1.5fr 1fr 0.8fr 0.8fr 1.2fr;
-}
-
 .table-row strong {
   display: grid;
   gap: 3px;
@@ -621,15 +617,6 @@ h1 {
   color: inherit;
 }
 
-.json-preview {
-  overflow: hidden;
-  max-height: 44px;
-  overflow-wrap: anywhere;
-  color: #596273 !important;
-  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
-  font-size: 11px !important;
-}
-
 .intent-box {
   display: grid;
   gap: 8px;
@@ -670,10 +657,6 @@ h1 {
   grid-template-columns: 1.25fr 0.85fr 0.85fr 0.55fr;
   gap: 10px;
   align-items: center;
-}
-
-.image-grid-row {
-  grid-template-columns: 1.6fr 1fr 0.45fr;
 }
 
 .inline-check {
@@ -789,8 +772,7 @@ h1 {
   .filter-form,
   .detail-grid,
   .detail-two-column,
-  .editor-grid-row,
-  .image-grid-row {
+  .editor-grid-row {
     grid-template-columns: 1fr;
   }
 }
@@ -877,7 +859,7 @@ h1 {
 .detail-two-column>.admin-panel h2,.detail-stack>.admin-panel h2 { letter-spacing:-.02em; }
 .admin-panel h2::after { content:""; display:block; width:28px; height:3px; margin-top:9px; border-radius:99px; background:#d6382f; }
 .category-row .action-cell,.media-row .action-cell { justify-self:start; }
-@media(min-width:1181px){.orders-row{}.filter-panel .filter-form{grid-template-columns:repeat(auto-fit,minmax(150px,1fr)) auto}.filter-panel .filter-form .search-field{min-width:240px}}
+@media(min-width:1181px){.filter-panel .filter-form{grid-template-columns:repeat(auto-fit,minmax(150px,1fr)) auto}.filter-panel .filter-form .search-field{min-width:240px}}
 .users-filter { grid-template-columns:minmax(280px,2fr) repeat(2,minmax(160px,1fr)) 100px auto!important; }
 .management-toolbar { display:flex; align-items:center; justify-content:space-between; gap:18px; }.management-toolbar>div { display:grid; gap:4px; }.management-toolbar strong { font-size:16px; }.management-toolbar span { color:#737d8b; font-size:12px; }.create-user-panel { border-left:4px solid #d6382f; }.create-user-form { max-width:none; grid-template-columns:repeat(3,minmax(0,1fr)); }.create-user-form .wide-field { grid-column:1/-1; }
 .users-table { overflow:visible; }

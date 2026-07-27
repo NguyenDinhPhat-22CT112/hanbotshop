@@ -9,6 +9,18 @@ import { tap, catchError } from 'rxjs/operators';
 import { PinoLogger } from 'nestjs-pino';
 import { MaskingService } from './masking.service';
 
+type RequestLogSource = {
+    method?: string;
+    url?: string;
+    headers?: unknown;
+    body?: unknown;
+};
+
+type ResponseLogSource = {
+    statusCode?: number;
+    getHeaders?: () => unknown;
+};
+
 /**
  * HTTP logging interceptor that captures request/response data
  * with correlation IDs, duration tracking, and sensitive data masking
@@ -20,9 +32,9 @@ export class LoggingInterceptor implements NestInterceptor {
         private readonly maskingService: MaskingService,
     ) { }
 
-    intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-        const request = context.switchToHttp().getRequest();
-        const response = context.switchToHttp().getResponse();
+    intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+        const request = context.switchToHttp().getRequest<RequestLogSource>();
+        const response = context.switchToHttp().getResponse<ResponseLogSource>();
 
         // Generate unique correlation ID for request-response tracing
         const correlationId = this.generateCorrelationId();
@@ -64,16 +76,23 @@ export class LoggingInterceptor implements NestInterceptor {
                     'HTTP Response',
                 );
             }),
-            catchError((error) => {
+            catchError((error: unknown) => {
                 const duration = Date.now() - startTime;
+                const normalizedError = error instanceof Error
+                    ? {
+                        message: error.message,
+                        type: error.constructor.name,
+                        stack: error.stack,
+                    }
+                    : {
+                        message: String(error),
+                        type: 'UnknownError',
+                        stack: undefined,
+                    };
 
                 // Capture error data with request context
                 const errorData = {
-                    error: {
-                        message: error.message,
-                        type: error.constructor?.name || 'Error',
-                        stack: error.stack,
-                    },
+                    error: normalizedError,
                     request: requestData,
                     correlationId,
                     duration,
@@ -98,6 +117,6 @@ export class LoggingInterceptor implements NestInterceptor {
      * @returns Unique correlation identifier
      */
     private generateCorrelationId(): string {
-        return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
     }
 }

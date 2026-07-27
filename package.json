@@ -14,11 +14,9 @@
     "format": "prettier --write .",
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema prisma/schema.prisma",
-    "db:seed": "node prisma/seed.cjs"
-    ,"e2e:prepare": "prisma migrate deploy --schema prisma/schema.prisma && node prisma/seed.cjs"
-    ,"test:e2e": "corepack pnpm e2e:prepare && playwright test"
-    ,"e2e:prepare": "prisma migrate deploy --schema prisma/schema.prisma && node prisma/seed.cjs"
-    ,"test:e2e": "corepack pnpm e2e:prepare && playwright test"
+    "db:seed": "node prisma/seed.cjs",
+    "e2e:prepare": "prisma migrate deploy --schema prisma/schema.prisma && node prisma/seed.cjs",
+    "test:e2e": "corepack pnpm e2e:prepare && playwright test"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0"

@@ -26,7 +26,7 @@ export class MaskingService {
      * @param data - Data to mask (can be object, array, string, or primitive)
      * @returns Masked copy of the data
      */
-    mask(data: any): any {
+    mask(data: unknown): unknown {
         if (data === null || data === undefined) {
             return data;
         }
@@ -40,7 +40,7 @@ export class MaskingService {
         }
 
         if (typeof data === 'object') {
-            const masked: any = {};
+            const masked: Record<string, unknown> = {};
             for (const [key, value] of Object.entries(data)) {
                 if (this.isSensitiveField(key)) {
                     masked[key] = this.MASKED_VALUE;

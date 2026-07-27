@@ -5,6 +5,26 @@ import * as fs from 'fs';
 import { LoggingConfigurationService } from './configuration.service';
 import { MaskingService } from './masking.service';
 
+type SerializedRequest = {
+    method?: string;
+    url?: string;
+    headers?: unknown;
+    remoteAddress?: string;
+    remotePort?: number;
+};
+
+type SerializedResponse = {
+    statusCode?: number;
+    headers?: unknown;
+    getHeaders?: () => unknown;
+};
+
+type SerializedError = {
+    constructor?: { name?: string };
+    message?: string;
+    stack?: string;
+};
+
 /**
  * Logging module that configures Pino logger with dual transport
  * Provides structured logging with JSON formatting, automatic file rotation,
@@ -43,8 +63,7 @@ import { MaskingService } from './masking.service';
                         // Dual transport configuration
                         transport: {
                             targets: [
-                                // Console transport with pretty-print for development
-                                {
+                                isPrettyPrint ? {
                                     target: 'pino-pretty',
                                     level: logLevel,
                                     options: {
@@ -52,6 +71,12 @@ import { MaskingService } from './masking.service';
                                         translateTime: 'SYS:standard',
                                         ignore: 'pid,hostname',
                                         singleLine: false,
+                                    },
+                                } : {
+                                    target: 'pino/file',
+                                    level: logLevel,
+                                    options: {
+                                        destination: 1,
                                     },
                                 },
                                 // File transport with rotation using pino-roll
@@ -70,18 +95,18 @@ import { MaskingService } from './masking.service';
                         },
                         // Custom serializers for request/response
                         serializers: {
-                            req: (req: any) => ({
+                            req: (req: SerializedRequest) => ({
                                 method: req.method,
                                 url: req.url,
                                 headers: req.headers,
                                 remoteAddress: req.remoteAddress,
                                 remotePort: req.remotePort,
                             }),
-                            res: (res: any) => ({
+                            res: (res: SerializedResponse) => ({
                                 statusCode: res.statusCode,
                                 headers: res.getHeaders?.() || res.headers,
                             }),
-                            err: (err: any) => ({
+                            err: (err: SerializedError) => ({
                                 type: err.constructor?.name || 'Error',
                                 message: err.message,
                                 stack: err.stack,

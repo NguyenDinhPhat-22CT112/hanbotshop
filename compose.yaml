@@ -46,7 +46,7 @@ services:
       dockerfile: docker/Dockerfile.web
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
         API_INTERNAL_URL: http://api:3001/api/v1
     environment:
       API_INTERNAL_URL: http://api:3001/api/v1
