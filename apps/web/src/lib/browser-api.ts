@@ -3,6 +3,7 @@
 // Keep browser authentication same-origin. Next.js proxies this path to the
 // internal API so the HttpOnly session cookie survives navigation and reloads.
 const apiUrl = '/api/v1';
+export const authSessionChangedEvent = 'hanbotorder:auth-session-changed';
 
 export type AuthMode = 'login' | 'register';
 
@@ -50,6 +51,10 @@ export async function authenticate(mode: AuthMode, body: Record<string, string>)
     method: 'POST',
     body: JSON.stringify(body)
   });
+}
+
+export function notifyAuthSessionChanged() {
+  window.dispatchEvent(new Event(authSessionChangedEvent));
 }
 
 export async function requestPasswordReset(email: string) {

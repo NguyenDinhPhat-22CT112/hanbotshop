@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { authenticate, type AuthMode } from '../lib/browser-api';
+import { authenticate, notifyAuthSessionChanged, type AuthMode } from '../lib/browser-api';
 import { mergeGuestCartAfterAuthentication } from '../lib/guest-cart';
 import { safeInternalPath } from '../lib/navigation';
 
@@ -45,6 +45,7 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
       });
 
       await mergeGuestCartAfterAuthentication().catch(() => null);
+      notifyAuthSessionChanged();
       setMessage(`Đã đăng nhập với tài khoản ${payload.user.email}`);
       router.push(safeInternalPath(nextPath, isRegister ? '/account' : '/'));
       router.refresh();

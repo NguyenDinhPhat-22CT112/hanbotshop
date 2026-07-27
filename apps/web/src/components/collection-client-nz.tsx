@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import type { CSSProperties } from 'react';
-import { useCallback, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import type { ProductAvailability } from '@hanbotorder/types';
 import type { Category, FilterOptions, ProductFilters } from '../lib/api';
 
@@ -40,6 +40,8 @@ export function CollectionClientNZ({ initialCategories, initialFilterOptions, cu
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     category: true,
     availability: true,
+    studio: false,
+    tags: false,
     price: true,
     sort: true
   });
@@ -48,6 +50,13 @@ export function CollectionClientNZ({ initialCategories, initialFilterOptions, cu
   const initialMax = clampPrice(currentFilters.maxPrice ?? priceBounds.max);
   const [draftMinPrice, setDraftMinPrice] = useState(Math.min(initialMin, initialMax - priceBounds.step));
   const [draftMaxPrice, setDraftMaxPrice] = useState(Math.max(initialMax, initialMin + priceBounds.step));
+
+  useEffect(() => {
+    const nextMin = clampPrice(currentFilters.minPrice ?? priceBounds.min);
+    const nextMax = clampPrice(currentFilters.maxPrice ?? priceBounds.max);
+    setDraftMinPrice(Math.min(nextMin, nextMax - priceBounds.step));
+    setDraftMaxPrice(Math.max(nextMax, nextMin + priceBounds.step));
+  }, [currentFilters.minPrice, currentFilters.maxPrice]);
 
   const rangeStyle = useMemo(() => {
     const minPercent = ((draftMinPrice - priceBounds.min) / (priceBounds.max - priceBounds.min)) * 100;
@@ -90,6 +99,21 @@ export function CollectionClientNZ({ initialCategories, initialFilterOptions, cu
     });
   };
 
+  const toggleStudio = (studio: string) => {
+    updateFilters({
+      studio: currentFilters.studio === studio ? undefined : studio
+    });
+  };
+
+  const toggleTag = (tagSlug: string) => {
+    const currentTags = currentFilters.tags ?? [];
+    const nextTags = currentTags.includes(tagSlug)
+      ? currentTags.filter((tag) => tag !== tagSlug)
+      : [...currentTags, tagSlug];
+
+    updateFilters({ tags: nextTags.length ? nextTags : undefined });
+  };
+
   const applyPriceRange = () => {
     updateFilters({
       minPrice: draftMinPrice > priceBounds.min ? draftMinPrice : undefined,
@@ -102,6 +126,8 @@ export function CollectionClientNZ({ initialCategories, initialFilterOptions, cu
   };
 
   const clearFilters = () => {
+    setDraftMinPrice(priceBounds.min);
+    setDraftMaxPrice(priceBounds.max);
     startTransition(() => {
       router.push('/collections/tat-ca-san-pham');
     });
@@ -119,6 +145,37 @@ export function CollectionClientNZ({ initialCategories, initialFilterOptions, cu
           </button>
         ) : null}
       </div>
+
+      {hasFilters ? (
+        <div className="nz-active-filters" aria-label="Bộ lọc đang áp dụng">
+          {currentFilters.q ? <FilterChip label={`Tìm kiếm: “${currentFilters.q}”`} onRemove={() => updateFilters({ q: undefined })} /> : null}
+          {currentFilters.categoryId ? (
+            <FilterChip
+              label={`Danh mục: ${initialCategories.find((category) => category.id === currentFilters.categoryId)?.name ?? currentFilters.categoryId}`}
+              onRemove={() => updateFilters({ categoryId: undefined })}
+            />
+          ) : null}
+          {currentFilters.availability ? (
+            <FilterChip
+              label={`Trạng thái: ${availabilityLabels[currentFilters.availability]}`}
+              onRemove={() => updateFilters({ availability: undefined })}
+            />
+          ) : null}
+          {currentFilters.studio ? <FilterChip label={`Thương hiệu: ${currentFilters.studio}`} onRemove={() => updateFilters({ studio: undefined })} /> : null}
+          {currentFilters.tags?.map((tagSlug) => {
+            const tag = initialFilterOptions?.tags.find((option) => option.slug === tagSlug);
+            return <FilterChip key={tagSlug} label={`Tag: ${tag?.name ?? tagSlug}`} onRemove={() => toggleTag(tagSlug)} />;
+          })}
+          {currentFilters.minPrice || currentFilters.maxPrice ? (
+            <FilterChip
+              label={`Giá: ${currentFilters.minPrice ? `từ ${formatPrice(currentFilters.minPrice)}` : ''}${
+                currentFilters.minPrice && currentFilters.maxPrice ? ' — ' : ''
+              }${currentFilters.maxPrice ? `đến ${formatPrice(currentFilters.maxPrice)}` : ''}`}
+              onRemove={() => updateFilters({ minPrice: undefined, maxPrice: undefined })}
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="nz-filter-group">
         <button type="button" className="nz-filter-title" onClick={() => toggleSection('category')}>
@@ -144,8 +201,9 @@ export function CollectionClientNZ({ initialCategories, initialFilterOptions, cu
         </button>
         {expandedSections.availability ? (
           <div className="nz-filter-options">
-            {(['PRE_ORDER', 'ORDER'] as ProductAvailability[]).map((availability) => {
-              const count = initialFilterOptions?.availabilityOptions.find((option) => option.value === availability)?.count ?? 0;
+            {(initialFilterOptions?.availabilityOptions ?? []).map((option) => {
+              const availability = option.value;
+              const count = option.count;
 
               return (
                 <label key={availability} className="nz-filter-checkbox">
@@ -158,6 +216,46 @@ export function CollectionClientNZ({ initialCategories, initialFilterOptions, cu
           </div>
         ) : null}
       </div>
+
+      {initialFilterOptions?.studios.length ? (
+        <div className="nz-filter-group">
+          <button type="button" className="nz-filter-title" onClick={() => toggleSection('studio')}>
+            <span>Thương hiệu</span>
+            <span className="nz-toggle-icon">{expandedSections.studio ? '−' : '+'}</span>
+          </button>
+          {expandedSections.studio ? (
+            <div className="nz-filter-options">
+              {initialFilterOptions.studios.map((studio) => (
+                <label key={studio.name} className="nz-filter-checkbox">
+                  <input type="checkbox" checked={currentFilters.studio === studio.name} onChange={() => toggleStudio(studio.name)} />
+                  <span>{studio.name}</span>
+                  <span className="nz-filter-count">({studio.count})</span>
+                </label>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {initialFilterOptions?.tags.length ? (
+        <div className="nz-filter-group">
+          <button type="button" className="nz-filter-title" onClick={() => toggleSection('tags')}>
+            <span>Tags</span>
+            <span className="nz-toggle-icon">{expandedSections.tags ? '−' : '+'}</span>
+          </button>
+          {expandedSections.tags ? (
+            <div className="nz-filter-options">
+              {initialFilterOptions.tags.slice(0, 20).map((tag) => (
+                <label key={tag.id} className="nz-filter-checkbox">
+                  <input type="checkbox" checked={currentFilters.tags?.includes(tag.slug) ?? false} onChange={() => toggleTag(tag.slug)} />
+                  <span>{tag.name}</span>
+                  <span className="nz-filter-count">({tag.count})</span>
+                </label>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="nz-filter-group">
         <button type="button" className="nz-filter-title" onClick={() => toggleSection('price')}>
@@ -239,6 +337,17 @@ export function CollectionClientNZ({ initialCategories, initialFilterOptions, cu
         </div>
       ) : null}
     </aside>
+  );
+}
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <span className="nz-active-filter">
+      <span>{label}</span>
+      <button type="button" onClick={onRemove} aria-label={`Xóa bộ lọc ${label}`}>
+        ×
+      </button>
+    </span>
   );
 }
 

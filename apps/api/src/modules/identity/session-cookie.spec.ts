@@ -67,3 +67,59 @@ test('admin logout clears only the admin session cookie', () => {
 
   assert.deepEqual(cleared, [adminSessionCookieName]);
 });
+
+test('production cookies are Secure by default', () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousSecureOverride = process.env.AUTH_COOKIE_SECURE;
+  const cookies: Array<{ options: Record<string, unknown> }> = [];
+
+  process.env.NODE_ENV = 'production';
+  delete process.env.AUTH_COOKIE_SECURE;
+
+  try {
+    setSessionCookies(
+      {
+        cookie: (_name, _value, options) => cookies.push({ options }),
+        clearCookie: () => undefined
+      },
+      'secret-jwt'
+    );
+
+    assert.equal(cookies[0]?.options.secure, true);
+  } finally {
+    restoreEnvironment('NODE_ENV', previousNodeEnv);
+    restoreEnvironment('AUTH_COOKIE_SECURE', previousSecureOverride);
+  }
+});
+
+test('AUTH_COOKIE_SECURE=false supports an HTTP-only deployment explicitly', () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousSecureOverride = process.env.AUTH_COOKIE_SECURE;
+  const cookies: Array<{ options: Record<string, unknown> }> = [];
+
+  process.env.NODE_ENV = 'production';
+  process.env.AUTH_COOKIE_SECURE = 'false';
+
+  try {
+    setSessionCookies(
+      {
+        cookie: (_name, _value, options) => cookies.push({ options }),
+        clearCookie: () => undefined
+      },
+      'secret-jwt'
+    );
+
+    assert.equal(cookies[0]?.options.secure, false);
+  } finally {
+    restoreEnvironment('NODE_ENV', previousNodeEnv);
+    restoreEnvironment('AUTH_COOKIE_SECURE', previousSecureOverride);
+  }
+});
+
+function restoreEnvironment(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
+}

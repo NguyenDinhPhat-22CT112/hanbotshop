@@ -1,8 +1,17 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { ApiError, authenticate, clearToken, getCart, getCurrentUser, type AuthUser } from '../lib/browser-api';
+import {
+  ApiError,
+  authenticate,
+  authSessionChangedEvent,
+  clearToken,
+  getCart,
+  getCurrentUser,
+  type AuthUser
+} from '../lib/browser-api';
 import {
   clearGuestCart,
   getGuestCart,
@@ -62,39 +71,43 @@ export function HeaderActions() {
     setCart(initialGuestCart);
     setCartMessage(initialGuestCart.items.length ? '' : 'Hiện chưa có sản phẩm');
 
-    getCurrentUser()
-      .then(async (payload) => {
-        if (!isMounted) {
-          return;
-        }
-
-        setHasToken(true);
-        setUser(payload.user);
-
-        try {
-          const mergedCart = await mergeGuestCartAfterAuthentication();
-          const accountCart = mergedCart ?? await getCart();
-
-          if (isMounted) {
-            setCart(accountCart);
-            setCartMessage(accountCart.items.length ? '' : 'Hiện chưa có sản phẩm');
+    const refreshAuthentication = () => {
+      getCurrentUser()
+        .then(async (payload) => {
+          if (!isMounted) {
+            return;
           }
-        } catch {
-          if (isMounted) {
-            void loadCartForCurrentSession();
+
+          setHasToken(true);
+          setUser(payload.user);
+
+          try {
+            const mergedCart = await mergeGuestCartAfterAuthentication();
+            const accountCart = mergedCart ?? await getCart();
+
+            if (isMounted) {
+              setCart(accountCart);
+              setCartMessage(accountCart.items.length ? '' : 'Hiện chưa có sản phẩm');
+            }
+          } catch {
+            if (isMounted) {
+              void loadCartForCurrentSession();
+            }
           }
-        }
-      })
-      .catch((error) => {
-        if (
-          isMounted &&
-          error instanceof ApiError &&
-          (error.status === 401 || error.status === 403)
-        ) {
-          setHasToken(false);
-          setUser(null);
-        }
-      });
+        })
+        .catch((error) => {
+          if (
+            isMounted &&
+            error instanceof ApiError &&
+            (error.status === 401 || error.status === 403)
+          ) {
+            setHasToken(false);
+            setUser(null);
+          }
+        });
+    };
+
+    refreshAuthentication();
 
     const refreshCart = () => {
       void loadCartForCurrentSession();
@@ -107,11 +120,13 @@ export function HeaderActions() {
 
     window.addEventListener('cart-updated', refreshCart);
     window.addEventListener('storage', refreshGuestCart);
+    window.addEventListener(authSessionChangedEvent, refreshAuthentication);
 
     return () => {
       isMounted = false;
       window.removeEventListener('cart-updated', refreshCart);
       window.removeEventListener('storage', refreshGuestCart);
+      window.removeEventListener(authSessionChangedEvent, refreshAuthentication);
     };
   }, [pathname]);
 
@@ -242,9 +257,9 @@ export function HeaderActions() {
             <span>TỔNG TIỀN:</span>
             <strong>{formatPrice(cart?.subtotal)}</strong>
           </div>
-          <a className="popover-primary" href="/cart">
+          <Link className="popover-primary" href="/cart">
             XEM GIỎ HÀNG
-          </a>
+          </Link>
         </div>
       ) : null}
 
@@ -255,10 +270,10 @@ export function HeaderActions() {
               <h2>THÔNG TIN TÀI KHOẢN</h2>
               <div className="popover-divider" />
               <strong className="account-menu-name">{displayName}</strong>
-              <a href="/account">Tài khoản của tôi</a>
-              <a href="/account/addresses">Danh sách địa chỉ</a>
-              <a href="/account/orders">Đơn hàng của tôi</a>
-              <a href="/account/notifications">Thông báo</a>
+              <Link href="/account">Tài khoản của tôi</Link>
+              <Link href="/account/addresses">Danh sách địa chỉ</Link>
+              <Link href="/account/orders">Đơn hàng của tôi</Link>
+              <Link href="/account/notifications">Thông báo</Link>
               <button type="button" onClick={logout}>
                 Đăng xuất
               </button>
@@ -273,8 +288,8 @@ export function HeaderActions() {
               <button type="submit" disabled={isLoginSubmitting}>
                 {isLoginSubmitting ? 'ĐANG ĐĂNG NHẬP...' : 'ĐĂNG NHẬP'}
               </button>
-              <a href="/register">Khách hàng mới? Tạo tài khoản</a>
-              <a href="/login">Quên mật khẩu? Khôi phục mật khẩu</a>
+              <Link href="/register">Khách hàng mới? Tạo tài khoản</Link>
+              <Link href="/login">Quên mật khẩu? Khôi phục mật khẩu</Link>
               {accountMessage ? <p role="status" aria-live="polite">{accountMessage}</p> : null}
             </form>
           )}

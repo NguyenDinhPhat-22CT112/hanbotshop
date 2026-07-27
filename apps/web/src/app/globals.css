@@ -5057,13 +5057,6 @@ a.order-card:hover {
     grid-column: 2;
   }
 
-  .collection-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .filter-select {
-    width: min(220px, 28vw);
-  }
 }
 
 
@@ -5240,6 +5233,54 @@ a.order-card:hover {
 
 .nz-clear-all:hover {
   opacity: 0.7;
+}
+
+.nz-active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -4px 0 8px;
+}
+
+.nz-active-filter {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #dedede;
+  border-radius: 999px;
+  background: #ffffff;
+  padding: 5px 7px 5px 10px;
+  color: #505866;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.nz-active-filter > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.nz-active-filter button {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #f1f1f1;
+  color: #555555;
+  padding: 0;
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nz-active-filter button:hover {
+  background: #d6382f;
+  color: #ffffff;
 }
 
 .nz-filter-group {

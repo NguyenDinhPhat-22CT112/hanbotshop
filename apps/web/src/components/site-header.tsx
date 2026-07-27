@@ -33,10 +33,10 @@ export function SiteHeader() {
       </button>
       <div className="header-nav-area">
         <nav id="primary-navigation" aria-label="Điều hướng chính" onClick={() => setMenuOpen(false)}>
-          <a href="/order">Order</a>
-          <a href="/resin">Resin</a>
-          <a href="/yeu-cau-in">Yêu cầu in</a>
-          <a href="/lien-he">Liên hệ</a>
+          <Link href="/order">Order</Link>
+          <Link href="/resin">Resin</Link>
+          <Link href="/yeu-cau-in">Yêu cầu in</Link>
+          <Link href="/lien-he">Liên hệ</Link>
         </nav>
         <ProductSearch redirectOnSubmit={true} />
         <HeaderActions />

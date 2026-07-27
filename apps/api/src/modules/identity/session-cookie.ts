@@ -39,7 +39,10 @@ function clearSessionCookie(response: CookieResponse, name: string) {
 }
 
 function cookieOptions() {
-  const secure = process.env.NODE_ENV === 'production';
+  const secure = readBoolean(
+    process.env.AUTH_COOKIE_SECURE,
+    process.env.NODE_ENV === 'production'
+  );
   const domain = process.env.AUTH_COOKIE_DOMAIN?.trim() || undefined;
 
   return {
@@ -54,4 +57,22 @@ function readPositiveInt(value: string | undefined, fallback: number) {
   const parsed = Number(value);
 
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function readBoolean(value: string | undefined, fallback: boolean) {
+  if (value === undefined || value.trim() === '') {
+    return fallback;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+
+  return fallback;
 }
