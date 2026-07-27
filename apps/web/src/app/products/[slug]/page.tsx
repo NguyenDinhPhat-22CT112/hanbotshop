@@ -59,7 +59,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
           availability: product.trackInventory && product.inventoryQuantity <= 0
             ? 'https://schema.org/OutOfStock'
             : 'https://schema.org/InStock',
-          url: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/products/${product.slug}`
+          url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/products/${product.slug}`
         }
       : undefined
   };

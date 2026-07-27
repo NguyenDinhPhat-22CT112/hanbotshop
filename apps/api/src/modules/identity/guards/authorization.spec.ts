@@ -16,7 +16,7 @@ function contextFor(request: Record<string, unknown>) {
 test('AuthGuard authenticates an HttpOnly cookie session and attaches current user', async () => {
   let verifiedToken = '';
   const request = { headers: { cookie: 'other=1; hanbotorder_session=cookie-jwt' } };
-  const authService = { findCurrentUser: async () => ({ id: 'admin-1', email: 'admin@example.com', name: 'Admin', role: UserRole.ADMIN }) };
+  const authService = { findCurrentUser: async () => ({ id: 'admin-1', email: 'admin@example.com', name: 'Admin', phone: null, role: UserRole.ADMIN }) };
   const tokenService = { verifyAccessToken: (token: string) => { verifiedToken = token; return { sub: 'admin-1' }; } };
   const guard = new AuthGuard(authService as never, tokenService as never);
 
@@ -36,7 +36,7 @@ test('AuthGuard skips an invalid duplicate cookie and accepts the valid one', as
   const authService = {
     findCurrentUser: async (userId: string) => {
       checkedUserIds.push(userId);
-      return { id: 'admin-1', email: 'admin@example.com', name: 'Admin', role: UserRole.ADMIN };
+      return { id: 'admin-1', email: 'admin@example.com', name: 'Admin', phone: null, role: UserRole.ADMIN };
     }
   };
   const tokenService = {
@@ -60,7 +60,7 @@ test('AuthGuard skips an invalid duplicate cookie and accepts the valid one', as
 test('AuthGuard keeps Bearer support for internal API clients', async () => {
   let verifiedToken = '';
   const request = { headers: { authorization: 'Bearer api-token' } };
-  const authService = { findCurrentUser: async () => ({ id: 'user-1', email: 'a@b.com', name: null, role: UserRole.CUSTOMER }) };
+  const authService = { findCurrentUser: async () => ({ id: 'user-1', email: 'a@b.com', name: null, phone: null, role: UserRole.CUSTOMER }) };
   const tokenService = { verifyAccessToken: (token: string) => { verifiedToken = token; return { sub: 'user-1' }; } };
   const guard = new AuthGuard(authService as never, tokenService as never);
 

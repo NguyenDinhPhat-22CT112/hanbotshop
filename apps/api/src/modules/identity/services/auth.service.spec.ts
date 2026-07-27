@@ -2,15 +2,17 @@ import { ConflictException, UnauthorizedException } from '@nestjs/common';
 import { UserRole, UserStatus } from '@prisma/client';
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { registerSchema } from '../dto/auth.dto';
 import { AuthService } from './auth.service';
 
 type TestUser = {
-  id: string; email: string; passwordHash: string; name: string; role: UserRole; status: UserStatus;
+  id: string; email: string; passwordHash: string; name: string; phone: string | null;
+  role: UserRole; status: UserStatus;
 };
 
 const activeUser: TestUser = {
   id: 'user-1', email: 'customer@example.com', passwordHash: 'hash', name: 'Customer',
-  role: UserRole.CUSTOMER, status: UserStatus.ACTIVE
+  phone: '0901234567', role: UserRole.CUSTOMER, status: UserStatus.ACTIVE
 };
 
 function authHarness(options?: {
@@ -106,9 +108,36 @@ test('registration rejects an existing email', async () => {
   const { service } = authHarness();
 
   await assert.rejects(
-    () => service.register({ email: activeUser.email, password: 'password123', name: 'Existing' }),
+    () => service.register({
+      email: activeUser.email,
+      password: 'password123',
+      name: 'Existing',
+      phone: '0901234567'
+    }),
     ConflictException
   );
+});
+
+test('registration requires a customer phone number', () => {
+  const result = registerSchema.safeParse({
+    email: 'new-customer@example.com',
+    password: 'password123',
+    name: 'New Customer'
+  });
+
+  assert.equal(result.success, false);
+});
+
+test('registration stores and returns the customer phone number', async () => {
+  const { service } = authHarness({ user: null });
+  const result = await service.register({
+    email: 'new-customer@example.com',
+    password: 'password123',
+    name: 'New Customer',
+    phone: '0909876543'
+  });
+
+  assert.equal(result.user.phone, '0909876543');
 });
 
 test('forgot password does not reveal whether an account exists', async () => {

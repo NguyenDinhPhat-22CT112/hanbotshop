@@ -69,6 +69,7 @@ export function AccountOverviewClient() {
             <div className="account-info-divider" />
             <strong>{status === 'loading' ? 'Đang tải...' : name}</strong>
             <span>{user?.email ?? 'Email sẽ hiển thị sau khi đăng nhập'}</span>
+            <span>Số điện thoại: {user?.phone || 'Chưa cập nhật'}</span>
             <span>Vietnam</span>
             <div className="account-info-actions">
               <a href="/account/addresses">Xem địa chỉ</a>

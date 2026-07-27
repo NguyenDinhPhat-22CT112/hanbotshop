@@ -36,12 +36,17 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
       const payload = await authenticate(mode, {
         email: String(formData.get('email') ?? ''),
         password: String(formData.get('password') ?? ''),
-        ...(isRegister ? { name: getRegisterName(formData) } : {})
+        ...(isRegister
+          ? {
+              name: getRegisterName(formData),
+              phone: String(formData.get('phone') ?? '')
+            }
+          : {})
       });
 
       await mergeGuestCartAfterAuthentication().catch(() => null);
       setMessage(`Đã đăng nhập với tài khoản ${payload.user.email}`);
-      router.push(safeInternalPath(nextPath, '/account'));
+      router.push(safeInternalPath(nextPath, isRegister ? '/account' : '/'));
       router.refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Không đăng nhập được.');
@@ -70,6 +75,16 @@ export function AuthForm({ mode, nextPath }: AuthFormProps) {
 
         <input name="birthday" type="text" placeholder="dd/mm/yyyy" inputMode="numeric" autoComplete="bday" />
         <input name="email" placeholder="Email" type="email" autoComplete="email" required />
+        <input
+          name="phone"
+          placeholder="Số điện thoại"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          minLength={6}
+          maxLength={32}
+          required
+        />
         <input name="password" placeholder="Mật khẩu" type="password" autoComplete="new-password" required />
 
         <button type="submit" disabled={isSubmitting}>

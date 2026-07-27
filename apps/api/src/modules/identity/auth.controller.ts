@@ -33,7 +33,7 @@ export class AuthController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['email', 'password', 'name'],
+      required: ['email', 'password', 'name', 'phone'],
       properties: {
         email: { type: 'string', format: 'email', example: 'customer@example.com' },
         password: { type: 'string', minLength: 8, example: 'SecurePassword123!' },
@@ -76,6 +76,7 @@ export class AuthController {
             id: { type: 'string', example: 'cm123abc456' },
             email: { type: 'string', example: 'customer@example.com' },
             name: { type: 'string', example: 'Nguyễn Văn A' },
+            phone: { type: 'string', nullable: true, example: '0901234567' },
             role: { type: 'string', enum: ['CUSTOMER', 'ADMIN'], example: 'CUSTOMER' }
           }
         }
@@ -146,6 +147,7 @@ export class AuthController {
             id: { type: 'string' },
             email: { type: 'string' },
             name: { type: 'string' },
+            phone: { type: 'string', nullable: true },
             role: { type: 'string', enum: ['CUSTOMER', 'ADMIN'] }
           }
         }

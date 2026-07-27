@@ -4,7 +4,7 @@ import { SiteHeader } from '../components/site-header';
 import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: { default: 'Hanbotorder', template: '%s | Hanbotorder' },
   description: 'Đặt trước figure, mô hình sưu tầm và theo dõi đơn hàng rõ ràng tại Hanbotorder.',
   alternates: { canonical: '/' },
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               '@context': 'https://schema.org',
               '@type': 'Organization',
               name: 'Hanbotorder',
-              url: process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000',
+              url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
               email: 'thaomihi@gmail.com',
               telephone: '0966480510'
             }).replace(/</g, '\\u003c')

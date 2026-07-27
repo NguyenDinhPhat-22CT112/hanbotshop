@@ -1,6 +1,8 @@
 'use client';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+// Keep browser authentication same-origin. Next.js proxies this path to the
+// internal API so the HttpOnly session cookie survives navigation and reloads.
+const apiUrl = '/api/v1';
 
 export type AuthMode = 'login' | 'register';
 
@@ -8,6 +10,7 @@ export type AuthUser = {
   id?: string;
   email: string;
   name?: string | null;
+  phone: string | null;
   role: string;
 };
 

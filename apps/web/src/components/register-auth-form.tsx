@@ -30,6 +30,7 @@ export function RegisterAuthForm({ nextPath }: { nextPath?: string | null }) {
       const payload = await authenticate('register', {
         name: getRegisterName(formData),
         email: String(formData.get('email') ?? ''),
+        phone: String(formData.get('phone') ?? ''),
         password: String(formData.get('password') ?? '')
       });
 
@@ -63,6 +64,16 @@ export function RegisterAuthForm({ nextPath }: { nextPath?: string | null }) {
 
       <input name="birthday" type="text" placeholder="dd/mm/yyyy" inputMode="numeric" autoComplete="bday" />
       <input name="email" placeholder="Email" type="email" autoComplete="email" required />
+      <input
+        name="phone"
+        placeholder="Số điện thoại"
+        type="tel"
+        inputMode="tel"
+        autoComplete="tel"
+        minLength={6}
+        maxLength={32}
+        required
+      />
       <input name="password" placeholder="Mật khẩu" type="password" autoComplete="new-password" required />
 
       <button type="submit" disabled={isSubmitting}>

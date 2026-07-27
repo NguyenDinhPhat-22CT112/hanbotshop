@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, authenticate, clearToken, getCart, getCurrentUser, type AuthUser } from '../lib/browser-api';
 import {
@@ -27,6 +28,7 @@ function getDisplayName(user: AuthUser | null) {
 }
 
 export function HeaderActions() {
+  const pathname = usePathname();
   const [openPanel, setOpenPanel] = useState<OpenPanel>(null);
   const [cart, setCart] = useState<CartState | null>(null);
   const [cartMessage, setCartMessage] = useState('Hiện chưa có sản phẩm');
@@ -83,9 +85,12 @@ export function HeaderActions() {
           }
         }
       })
-      .catch(() => {
-        clearToken();
-        if (isMounted) {
+      .catch((error) => {
+        if (
+          isMounted &&
+          error instanceof ApiError &&
+          (error.status === 401 || error.status === 403)
+        ) {
           setHasToken(false);
           setUser(null);
         }
@@ -108,7 +113,7 @@ export function HeaderActions() {
       window.removeEventListener('cart-updated', refreshCart);
       window.removeEventListener('storage', refreshGuestCart);
     };
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     function closeOnOutsideClick(event: MouseEvent) {
