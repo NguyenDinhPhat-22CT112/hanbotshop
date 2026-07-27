@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { cancelOrder, getAccountOrder, type AccountOrder } from '../lib/browser-api';
-import { labelOf } from '../lib/labels';
 import { PaymentActionButton } from './payment-action-button';
 
 export function AccountOrderDetailClient({ id }: { id: string }) {
@@ -62,11 +61,11 @@ export function AccountOrderDetailClient({ id }: { id: string }) {
   return (
     <main>
       <section className="catalog-header detail-header">
-        <p className="eyebrow">Đơn hàng</p>
+        <p className="eyebrow">{order.type === 'RESIN' ? 'Đơn Resin' : 'Đơn Order'}</p>
         <h1>{order.number}</h1>
         <div className="detail-status-row">
-          <span>{labelOf(order.status)}</span>
-          <span>{labelOf(order.payment)}</span>
+          <span>{order.statusLabel}</span>
+          <span>{order.paymentNotice}</span>
         </div>
       </section>
 
@@ -123,6 +122,12 @@ export function AccountOrderDetailClient({ id }: { id: string }) {
                 <dt>Cọc cần thanh toán</dt>
                 <dd>{order.depositRequired}</dd>
               </div>
+              {order.type === 'ORDER' && order.status === 'WAITING_SECOND_PAYMENT' ? (
+                <div>
+                  <dt>Thanh toán đợt 2</dt>
+                  <dd>{order.secondPaymentRequired}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt>Đã thanh toán</dt>
                 <dd>{order.paidAmount}</dd>
@@ -131,6 +136,12 @@ export function AccountOrderDetailClient({ id }: { id: string }) {
                 <dt>Còn lại</dt>
                 <dd>{order.remainingAmount}</dd>
               </div>
+              {order.type === 'ORDER' && order.status === 'SHIPPING' && order.codAmount !== '0 VND' ? (
+                <div>
+                  <dt>Thanh toán khi nhận hàng</dt>
+                  <dd>{order.codAmount}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt>Liên hệ</dt>
                 <dd>{order.contact}</dd>
@@ -140,14 +151,22 @@ export function AccountOrderDetailClient({ id }: { id: string }) {
                 <dd>{order.shippingAddress}</dd>
               </div>
             </dl>
-            {order.payment === 'UNPAID' || order.payment === 'PARTIALLY_PAID' ? <PaymentActionButton orderId={order.id} /> : null}
-            {['PENDING_CONFIRMATION', 'CONFIRMED', 'WAITING_PAYMENT'].includes(order.status) ? (
+            {(
+              order.type === 'ORDER'
+                ? ['WAITING_DEPOSIT', 'WAITING_SECOND_PAYMENT'].includes(order.status)
+                : ['PENDING_CONFIRMATION', 'CONFIRMED', 'WAITING_PAYMENT'].includes(order.status)
+            ) && order.payment !== 'PAID' ? <PaymentActionButton orderId={order.id} /> : null}
+            {(
+              order.type === 'ORDER'
+                ? order.status === 'WAITING_DEPOSIT'
+                : order.status === 'PENDING_CONFIRMATION'
+            ) ? (
               <button className="primary-link" type="button" onClick={() => void handleCancelOrder()}>
                 Hủy đơn hàng
               </button>
             ) : null}
             {message ? <p className="form-message">{message}</p> : null}
-            <a className="primary-link" href="mailto:thaomihi@gmail.com">
+            <a className="primary-link" href="mailto:hann34567890@gmail.com">
               Gửi cập nhật cho shop
             </a>
           </section>

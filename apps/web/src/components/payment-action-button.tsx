@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { createPaymentSession } from '../lib/browser-api';
+import { PaymentModal } from './bank-transfer-payment';
 
 type PaymentActionButtonProps = {
   orderId: string;
@@ -10,6 +11,7 @@ type PaymentActionButtonProps = {
 export function PaymentActionButton({ orderId }: PaymentActionButtonProps) {
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
 
   async function startPayment() {
     setIsLoading(true);
@@ -17,7 +19,9 @@ export function PaymentActionButton({ orderId }: PaymentActionButtonProps) {
 
     try {
       const payload = await createPaymentSession(orderId);
-      window.location.href = payload.checkoutUrl;
+      setPaymentId(payload.payment.id);
+      setMessage('');
+      setIsLoading(false);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Chưa tạo được phiên thanh toán.');
       setIsLoading(false);
@@ -25,11 +29,14 @@ export function PaymentActionButton({ orderId }: PaymentActionButtonProps) {
   }
 
   return (
-    <div className="payment-action">
-      <button className="primary-link payment-action-button" type="button" disabled={isLoading} onClick={() => void startPayment()}>
-        {isLoading ? 'Đang mở thanh toán...' : 'Thanh toán đơn hàng'}
-      </button>
-      {message ? <p className="form-message">{message}</p> : null}
-    </div>
+    <>
+      <div className="payment-action">
+        <button className="primary-link payment-action-button" type="button" disabled={isLoading} onClick={() => void startPayment()}>
+          {isLoading ? 'Đang mở thanh toán...' : 'Thanh toán đơn hàng'}
+        </button>
+        {message ? <p className="form-message">{message}</p> : null}
+      </div>
+      <PaymentModal paymentId={paymentId} onClose={() => setPaymentId(null)} />
+    </>
   );
 }

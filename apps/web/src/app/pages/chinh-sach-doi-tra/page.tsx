@@ -70,7 +70,7 @@ export default function ReturnPolicyPage() {
             Hanbotorder hỗ trợ xử lý các vấn đề phát sinh dựa trên tình trạng thực tế, video khui hàng
             và thông tin đơn đã xác nhận với khách.
           </p>
-          <a href="mailto:thaomihi@gmail.com">Gửi hình ảnh/video hỗ trợ</a>
+          <a href="mailto:hann34567890@gmail.com">Gửi hình ảnh/video hỗ trợ</a>
         </aside>
 
         <div className="policy-content">

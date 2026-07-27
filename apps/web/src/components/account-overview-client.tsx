@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { clearToken, getAccountOrders, getCurrentUser, type AccountOrder, type AuthUser } from '../lib/browser-api';
-import { labelOf } from '../lib/labels';
 
 function displayName(user: AuthUser | null) {
   return user?.name?.trim() || user?.email?.split('@')[0] || 'Khách hàng Hanbotorder';
@@ -84,7 +83,7 @@ export function AccountOverviewClient() {
               <>
                 <strong>Đơn gần nhất: {latestOrder.number}</strong>
                 <span>
-                  {labelOf(latestOrder.status)} · {latestOrder.total}
+                  {latestOrder.statusLabel} · {latestOrder.total}
                 </span>
                 <a href={`/account/orders/${encodeURIComponent(latestOrder.id)}`}>Xem chi tiết đơn hàng</a>
               </>

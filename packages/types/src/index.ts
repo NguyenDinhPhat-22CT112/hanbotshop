@@ -10,7 +10,11 @@ export type ProductAvailability =
   | 'CONTACT';
 
 export type OrderStatus =
-  | 'DRAFT'
+  | 'WAITING_DEPOSIT'
+  | 'DEPOSIT_PAID'
+  | 'WAITING_SECOND_PAYMENT'
+  | 'SECOND_PAYMENT_PAID'
+  | 'SHIPPING'
   | 'PENDING_CONFIRMATION'
   | 'CONFIRMED'
   | 'WAITING_PAYMENT'
@@ -20,8 +24,9 @@ export type OrderStatus =
   | 'SHIPPED'
   | 'COMPLETED'
   | 'CANCELLED'
-  | 'REFUNDED'
   | 'BLOCKED';
+
+export type OrderType = 'ORDER' | 'RESIN';
 
 export type ApiError = {
   error: {

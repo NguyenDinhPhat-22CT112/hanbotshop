@@ -12,7 +12,10 @@ export async function middleware(request: NextRequest) {
 
   try {
     const response = await fetch(`${apiUrl}/auth/admin-check`, {
-      headers: { cookie },
+      headers: {
+        cookie,
+        'x-hanbotorder-session-scope': 'admin'
+      },
       cache: 'no-store'
     });
 

@@ -1,10 +1,21 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditAction, NotificationType, OrderEventType, OrderNoteType, OrderStatus, PaymentStatus, Prisma, UserRole } from '@prisma/client';
+import {
+  AuditAction,
+  NotificationType,
+  OrderEventType,
+  OrderNoteType,
+  OrderStatus,
+  OrderType,
+  PaymentStatus,
+  Prisma,
+  UserRole
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import type {
   OrderListQueryDto,
   OrderNoteDto,
+  SecondPaymentRequestDto,
   TrackingDto,
   UpdateOrderPaymentDto,
   UpdateOrderStatusDto
@@ -14,6 +25,30 @@ type Actor = {
   id: string;
   role: UserRole;
 };
+
+const orderWorkflowStatuses: OrderStatus[] = [
+  OrderStatus.WAITING_DEPOSIT,
+  OrderStatus.DEPOSIT_PAID,
+  OrderStatus.WAITING_SECOND_PAYMENT,
+  OrderStatus.SECOND_PAYMENT_PAID,
+  OrderStatus.SHIPPING,
+  OrderStatus.COMPLETED,
+  OrderStatus.CANCELLED,
+  OrderStatus.BLOCKED
+];
+
+const resinWorkflowStatuses: OrderStatus[] = [
+  OrderStatus.PENDING_CONFIRMATION,
+  OrderStatus.CONFIRMED,
+  OrderStatus.WAITING_PAYMENT,
+  OrderStatus.PAID,
+  OrderStatus.IN_PRODUCTION,
+  OrderStatus.READY_TO_SHIP,
+  OrderStatus.SHIPPED,
+  OrderStatus.COMPLETED,
+  OrderStatus.CANCELLED,
+  OrderStatus.BLOCKED
+];
 
 @Injectable()
 export class OrdersService {
@@ -25,6 +60,7 @@ export class OrdersService {
   async listOrders(actor: Actor, query: OrderListQueryDto) {
     const where: Prisma.OrderWhereInput = {
       userId: actor.role === UserRole.ADMIN ? undefined : actor.id,
+      type: query.type,
       status: query.status,
       paymentStatus: query.paymentStatus,
       OR: query.q
@@ -70,6 +106,7 @@ export class OrdersService {
 
   async updateOrderStatus(actor: Actor, id: string, dto: UpdateOrderStatusDto) {
     const before = await this.ensureOrderExists(id);
+    this.assertStatusTransition(before, dto.status);
 
     const order = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.order.update({
@@ -158,6 +195,78 @@ export class OrdersService {
     return this.serializeOrder(order);
   }
 
+  async requestSecondPayment(actor: Actor, id: string, dto: SecondPaymentRequestDto) {
+    const before = await this.ensureOrderExists(id);
+
+    if (before.type !== OrderType.ORDER) {
+      throw new BadRequestException('Second-payment requests are only available for Order purchases.');
+    }
+
+    if (before.status !== OrderStatus.DEPOSIT_PAID) {
+      throw new BadRequestException('The deposit must be confirmed before requesting the second payment.');
+    }
+
+    const amount = new Prisma.Decimal(dto.amount).toDecimalPlaces(2);
+    const remainingAmount = before.total.minus(before.paidAmount);
+
+    if (amount.greaterThan(remainingAmount)) {
+      throw new BadRequestException('The requested second payment cannot exceed the remaining order balance.');
+    }
+
+    const order = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id },
+        data: {
+          secondPaymentRequired: amount,
+          status: OrderStatus.WAITING_SECOND_PAYMENT
+        },
+        include: this.orderInclude()
+      });
+
+      await tx.orderEvent.create({
+        data: {
+          orderId: id,
+          actorId: actor.id,
+          type: OrderEventType.STATUS_CHANGED,
+          payload: {
+            before: before.status,
+            after: OrderStatus.WAITING_SECOND_PAYMENT,
+            secondPaymentRequired: amount.toString()
+          }
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: actor.id,
+          action: AuditAction.STATUS_CHANGE,
+          resourceType: 'Order',
+          resourceId: id,
+          before: { status: before.status, secondPaymentRequired: before.secondPaymentRequired.toString() },
+          after: { status: OrderStatus.WAITING_SECOND_PAYMENT, secondPaymentRequired: amount.toString() }
+        }
+      });
+
+      const user = await tx.user.findUnique({ where: { id: before.userId }, select: { email: true } });
+      if (user) {
+        await this.notifications.enqueue(tx, {
+          userId: before.userId,
+          email: user.email,
+          orderId: id,
+          orderNumber: before.orderNumber,
+          type: NotificationType.ORDER_STATUS_CHANGED,
+          title: `Đơn ${before.orderNumber} đã về hàng`,
+          body: `Vui lòng thanh toán đợt 2: ${amount.toString()} VND.`,
+          dedupeKey: `second-payment-requested:${id}:${updated.updatedAt.toISOString()}`
+        });
+      }
+
+      return updated;
+    });
+
+    return this.serializeOrder(order);
+  }
+
   async cancelOrder(actor: Actor, id: string) {
     const order = await this.prisma.order.findUnique({ where: { id }, include: { items: true } });
 
@@ -167,7 +276,7 @@ export class OrdersService {
 
     this.assertCanAccessOrder(actor, order.userId);
 
-    this.assertCanCancelOrder(actor, order.status, order.paymentStatus);
+    this.assertCanCancelOrder(actor, order.type, order.status, order.paymentStatus);
 
     const cancelledOrder = await this.prisma.$transaction(async (tx) => {
       for (const item of order.items.filter((entry) => entry.inventoryCommitted)) {
@@ -334,7 +443,12 @@ export class OrdersService {
       shippingFee: order.shippingFee.toString(),
       total: order.total.toString(),
       depositRequired: order.depositRequired.toString(),
+      secondPaymentRequired: order.secondPaymentRequired.toString(),
       paidAmount: order.paidAmount.toString(),
+      remainingAmount: Prisma.Decimal.max(
+        order.total.minus(order.paidAmount),
+        new Prisma.Decimal(0)
+      ).toString(),
       items: order.items.map((item) => ({
         ...item,
         unitPrice: item.unitPrice.toString(),
@@ -364,14 +478,23 @@ export class OrdersService {
     }
   }
 
-  private assertCanCancelOrder(actor: Actor, status: OrderStatus, paymentStatus: PaymentStatus) {
+  private assertCanCancelOrder(
+    actor: Actor,
+    type: OrderType,
+    status: OrderStatus,
+    paymentStatus: PaymentStatus
+  ) {
     if (paymentStatus === PaymentStatus.PAID || paymentStatus === PaymentStatus.PARTIALLY_PAID) {
-      throw new ForbiddenException('Paid or partially paid orders must be refunded before cancellation.');
+      throw new ForbiddenException('Paid orders cannot be refunded or cancelled. Contact Admin to transfer the order.');
     }
 
     if (actor.role !== UserRole.ADMIN) {
-      if (status !== OrderStatus.PENDING_CONFIRMATION) {
-        throw new ForbiddenException('Customers can only cancel orders before admin confirmation.');
+      const cancellableStatus = type === OrderType.ORDER
+        ? OrderStatus.WAITING_DEPOSIT
+        : OrderStatus.PENDING_CONFIRMATION;
+
+      if (status !== cancellableStatus) {
+        throw new ForbiddenException('Customers can only cancel an unpaid order before it is processed.');
       }
 
       return;
@@ -379,13 +502,56 @@ export class OrdersService {
 
     const terminalStatuses: OrderStatus[] = [
       OrderStatus.CANCELLED,
-      OrderStatus.REFUNDED,
       OrderStatus.SHIPPED,
+      OrderStatus.SHIPPING,
       OrderStatus.COMPLETED
     ];
 
     if (terminalStatuses.includes(status)) {
       throw new ForbiddenException('Orders in a terminal or shipped state cannot be cancelled.');
+    }
+  }
+
+  private assertStatusTransition(
+    order: Awaited<ReturnType<OrdersService['ensureOrderExists']>>,
+    nextStatus: OrderStatus
+  ) {
+    const allowedStatuses = order.type === OrderType.ORDER
+      ? orderWorkflowStatuses
+      : resinWorkflowStatuses;
+
+    if (!allowedStatuses.includes(nextStatus)) {
+      throw new BadRequestException(`Status ${nextStatus} is not valid for ${order.type} orders.`);
+    }
+
+    if (order.type !== OrderType.ORDER || nextStatus === order.status) {
+      return;
+    }
+
+    if (nextStatus === OrderStatus.DEPOSIT_PAID || nextStatus === OrderStatus.SECOND_PAYMENT_PAID) {
+      throw new BadRequestException('Confirm the matching payment instead of changing this status manually.');
+    }
+
+    if (nextStatus === OrderStatus.WAITING_SECOND_PAYMENT) {
+      throw new BadRequestException('Enter the second-payment amount to start this stage.');
+    }
+
+    if (nextStatus === OrderStatus.CANCELLED) {
+      throw new BadRequestException('Use the cancel-order action so reserved inventory is restored safely.');
+    }
+
+    if (nextStatus === OrderStatus.SHIPPING && order.status !== OrderStatus.SECOND_PAYMENT_PAID) {
+      throw new BadRequestException('The second payment must be confirmed before shipping.');
+    }
+
+    if (nextStatus === OrderStatus.COMPLETED) {
+      if (order.status !== OrderStatus.SHIPPING) {
+        throw new BadRequestException('Only a shipping order can be completed.');
+      }
+
+      if (order.paidAmount.lessThan(order.total)) {
+        throw new BadRequestException('Record the remaining COD amount before completing the order.');
+      }
     }
   }
 

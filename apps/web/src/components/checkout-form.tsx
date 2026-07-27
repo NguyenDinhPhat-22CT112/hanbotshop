@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { checkout, getAddresses, getCart, type Address } from '../lib/browser-api';
+import { checkout, createPaymentSession, getAddresses, getCart, type Address } from '../lib/browser-api';
 import { calculateDepositRequired, formatVnd } from '../lib/checkout-utils';
+import { PaymentModal } from './bank-transfer-payment';
 
 type CartState = Awaited<ReturnType<typeof getCart>>;
 
@@ -39,6 +40,8 @@ export function CheckoutForm() {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -91,7 +94,7 @@ export function CheckoutForm() {
     setMessage('Đang tạo đơn hàng...');
 
     try {
-      const order = await checkout({
+      const result = await checkout({
         recipientName: fields.recipientName,
         recipientPhone: fields.recipientPhone,
         shippingAddress: {
@@ -101,9 +104,24 @@ export function CheckoutForm() {
           countryCode: 'VN'
         }
       });
+      const orderPurchase = result.orders.find((order) => order.type === 'ORDER');
+      const createdNumbers = result.orders.map((order) => order.orderNumber).join(', ');
 
-      setMessage(`Đã tạo đơn hàng: ${order.orderNumber}. Đang chuyển sang chi tiết đơn...`);
-      router.push(`/account/orders/${encodeURIComponent(order.id)}`);
+      if (orderPurchase) {
+        setMessage(`Đã tách và tạo đơn: ${createdNumbers}. Bảng thanh toán tiền cọc đã sẵn sàng.`);
+        const paymentSession = await createPaymentSession(orderPurchase.id);
+        setCreatedOrderId(orderPurchase.id);
+        setPaymentId(paymentSession.payment.id);
+        return;
+      }
+
+      const resinOrder = result.orders[0];
+      if (!resinOrder) {
+        throw new Error('Hệ thống chưa trả về đơn hàng vừa tạo.');
+      }
+
+      setMessage(`Đã tạo đơn Resin: ${resinOrder.orderNumber}. Đang chuyển sang chi tiết đơn...`);
+      router.push(`/account/orders/${encodeURIComponent(resinOrder.id)}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Không tạo được đơn hàng.');
       setIsSubmitting(false);
@@ -113,8 +131,9 @@ export function CheckoutForm() {
   const depositRequired = calculateDepositRequired(cart?.items ?? []);
 
   return (
-    <div className="checkout-layout">
-      <form className="request-form checkout-address-form" action={submit} aria-busy={isSubmitting || isLoading}>
+    <>
+      <div className="checkout-layout">
+        <form className="request-form checkout-address-form" action={submit} aria-busy={isSubmitting || isLoading}>
       <header className="checkout-section-heading">
         <h2>Địa chỉ nhận hàng</h2>
         <a href="/account/addresses">Quản lý địa chỉ</a>
@@ -164,9 +183,9 @@ export function CheckoutForm() {
         {isSubmitting ? 'Đang tạo đơn...' : 'Xác nhận tạo đơn hàng'}
       </button>
       {message ? <p className="form-message" role="status" aria-live="polite">{message}</p> : null}
-      </form>
+        </form>
 
-      <aside className="checkout-summary" aria-labelledby="checkout-summary-title">
+        <aside className="checkout-summary" aria-labelledby="checkout-summary-title">
         <header className="checkout-section-heading">
           <h2 id="checkout-summary-title">Đơn hàng của bạn</h2>
           <a href="/cart">Sửa giỏ hàng</a>
@@ -183,7 +202,10 @@ export function CheckoutForm() {
             <article className="checkout-item" key={item.id}>
               <div>
                 <strong>{item.product.name}</strong>
-                <span>{item.variant?.name ? `${item.variant.name} · ` : ''}Số lượng: {item.quantity}</span>
+                <span>
+                  {item.product.orderType === 'RESIN' ? 'Đơn Resin' : 'Đơn Order'} ·{' '}
+                  {item.variant?.name ? `${item.variant.name} · ` : ''}Số lượng: {item.quantity}
+                </span>
                 {item.product.paymentRequirement === 'DEPOSIT' ? <small>Cọc {item.product.depositPercent}%</small> : <small>Thanh toán đủ</small>}
               </div>
               <strong>{formatVnd(item.totalPrice)}</strong>
@@ -196,7 +218,17 @@ export function CheckoutForm() {
           <div><dt>Cần thanh toán trước dự kiến</dt><dd>{formatVnd(String(depositRequired))}</dd></div>
         </dl>
         <p className="checkout-summary-note">Phí giao hàng do hệ thống của shop xác định và sẽ được ghi nhận trong đơn. Shop sẽ xác nhận lại tồn kho, số tiền cọc và lịch giao.</p>
-      </aside>
-    </div>
+        </aside>
+      </div>
+      <PaymentModal
+        paymentId={paymentId}
+        onClose={() => {
+          setPaymentId(null);
+          if (createdOrderId) {
+            router.push(`/account/orders/${encodeURIComponent(createdOrderId)}`);
+          }
+        }}
+      />
+    </>
   );
 }

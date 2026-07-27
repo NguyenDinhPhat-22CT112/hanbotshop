@@ -12,7 +12,7 @@ export class ReportsService {
         in: [PaymentStatus.PAID, PaymentStatus.PARTIALLY_PAID]
       },
       status: {
-        notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED]
+        notIn: [OrderStatus.CANCELLED]
       }
     };
     const [paidOrders, allOrders, pendingOrders, recentOrders] = await this.prisma.$transaction([
@@ -28,7 +28,7 @@ export class ReportsService {
             in: [PaymentStatus.UNPAID, PaymentStatus.PARTIALLY_PAID]
           },
           status: {
-            notIn: [OrderStatus.CANCELLED, OrderStatus.REFUNDED, OrderStatus.COMPLETED]
+            notIn: [OrderStatus.CANCELLED, OrderStatus.COMPLETED]
           }
         }
       }),

@@ -3,6 +3,9 @@
 // Keep browser authentication same-origin. Next.js proxies this path to the
 // internal API so cookies work for localhost, 127.0.0.1 and production domains.
 const apiUrl = '/api/v1';
+const adminSessionScopeHeaders = {
+  'x-hanbotorder-session-scope': 'admin'
+};
 
 type AdminUser = {
   id?: string;
@@ -24,7 +27,12 @@ export function getAdminToken() {
 
 export function clearAdminToken() {
   window.localStorage.removeItem('hanbotorder_admin_token');
-  void fetch(`${apiUrl}/auth/logout`, { method: 'POST', credentials: 'include', keepalive: true });
+  void fetch(`${apiUrl}/auth/admin-logout`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: adminSessionScopeHeaders,
+    keepalive: true
+  });
 }
 
 function getErrorMessage(payload: unknown, fallback: string) {
@@ -49,6 +57,7 @@ export async function adminFetch<T>(path: string, options: RequestInit = {}) {
     credentials: 'include',
     headers: {
       'content-type': 'application/json',
+      ...adminSessionScopeHeaders,
       ...options.headers
     }
   });
@@ -67,7 +76,8 @@ export async function adminFetch<T>(path: string, options: RequestInit = {}) {
 
 export async function adminCheck() {
   const response = await fetch(`${apiUrl}/auth/admin-check`, {
-    credentials: 'include'
+    credentials: 'include',
+    headers: adminSessionScopeHeaders
   });
   const payload = await response.json().catch(() => null);
 
@@ -81,11 +91,12 @@ export async function adminCheck() {
 }
 
 export async function adminLogin(email: string, password: string) {
-  const response = await fetch(`${apiUrl}/auth/login`, {
+  const response = await fetch(`${apiUrl}/auth/admin-login`, {
     method: 'POST',
     credentials: 'include',
     headers: {
-      'content-type': 'application/json'
+      'content-type': 'application/json',
+      ...adminSessionScopeHeaders
     },
     body: JSON.stringify({ email, password })
   });

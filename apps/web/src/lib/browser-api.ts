@@ -126,6 +126,7 @@ export type CartItem = {
   product: {
     name: string;
     imageUrl?: string | null;
+    orderType?: 'ORDER' | 'RESIN';
     paymentRequirement: 'FULL' | 'DEPOSIT';
     depositPercent: number;
   };
@@ -162,7 +163,9 @@ export async function removeCartItem(itemId: string) {
 }
 
 export async function checkout(body: Record<string, unknown>) {
-  return apiFetch<{ id: string; orderNumber: string }>('/checkout', {
+  return apiFetch<{
+    orders: Array<{ id: string; orderNumber: string; type: 'ORDER' | 'RESIN' }>;
+  }>('/checkout', {
     method: 'POST',
     headers: {
       'Idempotency-Key': createIdempotencyKey()
@@ -192,6 +195,7 @@ export type BankTransferPayment = {
     bankName?: string;
     accountNumber?: string;
     accountName?: string;
+    qrUrl?: string;
     transferContent?: string;
     instructions?: string;
   } | null;
@@ -228,12 +232,17 @@ type ApiOrderItem = {
 export type AccountOrder = {
   id: string;
   number: string;
+  type: 'ORDER' | 'RESIN';
   status: string;
+  statusLabel: string;
   payment: string;
+  paymentNotice: string;
   total: string;
   depositRequired: string;
+  secondPaymentRequired: string;
   paidAmount: string;
   remainingAmount: string;
+  codAmount: string;
   placedAt: string;
   estimate: string;
   contact: string;
@@ -254,11 +263,14 @@ export type AccountOrder = {
 type ApiOrder = {
   id: string;
   orderNumber: string;
+  type: 'ORDER' | 'RESIN';
   status: string;
   paymentStatus: string;
   total: string;
   depositRequired: string;
+  secondPaymentRequired: string;
   paidAmount: string;
+  remainingAmount?: string;
   createdAt: string;
   recipientName?: string | null;
   recipientPhone?: string | null;
@@ -306,12 +318,17 @@ function mapOrder(order: ApiOrder, timeline?: ApiTimelineItem[]): AccountOrder {
   return {
     id: order.id,
     number: order.orderNumber,
+    type: order.type,
     status: order.status,
+    statusLabel: customerOrderStatus(order),
     payment: order.paymentStatus,
+    paymentNotice: customerPaymentNotice(order),
     total: formatVnd(order.total),
     depositRequired: formatVnd(order.depositRequired),
+    secondPaymentRequired: formatVnd(order.secondPaymentRequired),
     paidAmount: formatVnd(order.paidAmount),
-    remainingAmount: formatVnd(String(Math.max(0, Number(order.total) - Number(order.paidAmount)))),
+    remainingAmount: formatVnd(order.remainingAmount ?? String(Math.max(0, Number(order.total) - Number(order.paidAmount)))),
+    codAmount: formatVnd(order.status === 'SHIPPING' ? (order.remainingAmount ?? String(Math.max(0, Number(order.total) - Number(order.paidAmount)))) : '0'),
     placedAt: formatDate(order.createdAt),
     estimate: estimateForStatus(order.status, order.paymentStatus),
     contact: [order.recipientName, order.recipientPhone].filter(Boolean).join(' / ') || 'Chưa có thông tin liên hệ',
@@ -325,7 +342,65 @@ function mapOrder(order: ApiOrder, timeline?: ApiTimelineItem[]): AccountOrder {
   };
 }
 
+function customerOrderStatus(order: ApiOrder) {
+  if (order.type === 'RESIN') {
+    const resinLabels: Record<string, string> = {
+      PENDING_CONFIRMATION: 'Shop đang xác nhận đơn Resin',
+      CONFIRMED: 'Đơn Resin đã được xác nhận',
+      WAITING_PAYMENT: 'Chờ thanh toán',
+      PAID: 'Đã thanh toán',
+      IN_PRODUCTION: 'Đang sản xuất Resin',
+      READY_TO_SHIP: 'Resin đã sẵn sàng giao',
+      SHIPPED: 'Đang giao hàng',
+      COMPLETED: 'Đã hoàn tất',
+      CANCELLED: 'Đã hủy',
+      BLOCKED: 'Đang tạm dừng xử lý'
+    };
+
+    return resinLabels[order.status] ?? order.status;
+  }
+
+  const orderLabels: Record<string, string> = {
+    WAITING_DEPOSIT: 'Chờ thanh toán tiền cọc',
+    DEPOSIT_PAID: 'Đã nhận tiền cọc – Đang chờ hàng về',
+    WAITING_SECOND_PAYMENT: 'Hàng đã về – Chờ thanh toán đợt 2',
+    SECOND_PAYMENT_PAID: 'Đã nhận thanh toán đợt 2 – Chuẩn bị giao hàng',
+    SHIPPING: 'Đang vận chuyển',
+    COMPLETED: 'Đã hoàn tất',
+    CANCELLED: 'Đã hủy',
+    BLOCKED: 'Đang tạm dừng xử lý'
+  };
+
+  return orderLabels[order.status] ?? order.status;
+}
+
+function customerPaymentNotice(order: ApiOrder) {
+  const remaining = Math.max(0, Number(order.total) - Number(order.paidAmount));
+
+  if (order.paymentStatus === 'PAID' || remaining === 0) {
+    return 'Đã thanh toán đủ';
+  }
+
+  if (order.status === 'SHIPPING') {
+    return `Còn ${formatVnd(String(remaining))} thanh toán khi nhận hàng`;
+  }
+
+  if (order.status === 'WAITING_DEPOSIT') {
+    return `Cần thanh toán tiền cọc ${formatVnd(order.depositRequired)}`;
+  }
+
+  if (order.status === 'WAITING_SECOND_PAYMENT') {
+    return `Cần thanh toán đợt 2 ${formatVnd(order.secondPaymentRequired)}`;
+  }
+
+  return `Đã thanh toán ${formatVnd(order.paidAmount)} · Còn ${formatVnd(String(remaining))}`;
+}
+
 function fallbackTimeline(order: ApiOrder, trackingCopy: string): AccountOrder['timeline'] {
+  if (order.type === 'ORDER') {
+    return orderPurchaseTimeline(order, trackingCopy);
+  }
+
   return [
     {
       title: 'Đã tạo đơn',
@@ -350,6 +425,47 @@ function fallbackTimeline(order: ApiOrder, trackingCopy: string): AccountOrder['
       note: trackingCopy,
       time: order.status === 'SHIPPED' || order.status === 'COMPLETED' ? 'Đang giao' : 'Sắp tới',
       done: order.status === 'SHIPPED' || order.status === 'COMPLETED'
+    }
+  ];
+}
+
+function orderPurchaseTimeline(order: ApiOrder, trackingCopy: string): AccountOrder['timeline'] {
+  const reachedDeposit = ['DEPOSIT_PAID', 'WAITING_SECOND_PAYMENT', 'SECOND_PAYMENT_PAID', 'SHIPPING', 'COMPLETED'].includes(order.status);
+  const reachedSecondPayment = ['SECOND_PAYMENT_PAID', 'SHIPPING', 'COMPLETED'].includes(order.status);
+  const reachedShipping = ['SHIPPING', 'COMPLETED'].includes(order.status);
+
+  return [
+    {
+      title: 'Đã tạo đơn Order',
+      note: 'Thông tin thanh toán tiền cọc đã sẵn sàng.',
+      time: formatDateTime(order.createdAt),
+      done: true
+    },
+    {
+      title: 'Thanh toán tiền cọc',
+      note: reachedDeposit ? 'Shop đã xác nhận khoản tiền cọc.' : `Cần thanh toán ${formatVnd(order.depositRequired)}.`,
+      time: reachedDeposit ? 'Đã xác nhận' : 'Đang chờ',
+      done: reachedDeposit
+    },
+    {
+      title: 'Hàng về và thanh toán đợt 2',
+      note: order.status === 'WAITING_SECOND_PAYMENT'
+        ? `Shop yêu cầu thanh toán ${formatVnd(order.secondPaymentRequired)}.`
+        : 'Shop sẽ liên hệ khi hàng về.',
+      time: reachedSecondPayment ? 'Đã xác nhận' : 'Sắp tới',
+      done: reachedSecondPayment
+    },
+    {
+      title: 'Vận chuyển',
+      note: reachedShipping ? trackingCopy : 'Mã vận chuyển sẽ được cập nhật khi giao hàng.',
+      time: reachedShipping ? 'Đang giao' : 'Sắp tới',
+      done: reachedShipping
+    },
+    {
+      title: 'Hoàn tất',
+      note: 'Đơn hoàn tất sau khi giao hàng và thanh toán đủ.',
+      time: order.status === 'COMPLETED' ? 'Hoàn tất' : 'Sắp tới',
+      done: order.status === 'COMPLETED'
     }
   ];
 }
@@ -380,6 +496,11 @@ function timelineTitle(type: string) {
     ORDER_CANCELLED: 'Đã hủy đơn',
     ADMIN_NOTE_ADDED: 'Shop thêm ghi chú',
     PAYMENT_NOTE_ADDED: 'Ghi nhận thanh toán',
+    WAITING_DEPOSIT: 'Chờ thanh toán tiền cọc',
+    DEPOSIT_PAID: 'Đã thanh toán tiền cọc',
+    WAITING_SECOND_PAYMENT: 'Chờ thanh toán đợt 2',
+    SECOND_PAYMENT_PAID: 'Đã thanh toán đợt 2',
+    SHIPPING: 'Đang vận chuyển',
     PAID: 'Đã thanh toán',
     PARTIALLY_PAID: 'Thanh toán một phần',
     IN_PRODUCTION: 'Đang sản xuất',
@@ -393,7 +514,7 @@ function timelineTitle(type: string) {
 }
 
 function timelineNote(type: string, trackingCopy: string) {
-  if (type === 'TRACKING_UPDATED' || type === 'SHIPPED') {
+  if (type === 'TRACKING_UPDATED' || type === 'SHIPPED' || type === 'SHIPPING') {
     return trackingCopy;
   }
 
@@ -459,7 +580,7 @@ function estimateForStatus(status: string, paymentStatus: string) {
     return 'Đơn đã hoàn tất';
   }
 
-  if (status === 'SHIPPED') {
+  if (status === 'SHIPPED' || status === 'SHIPPING') {
     return 'Đơn đang được giao';
   }
 

@@ -16,13 +16,75 @@ function contextFor(request: Record<string, unknown>) {
 test('AuthGuard authenticates an HttpOnly cookie session and attaches current user', async () => {
   let verifiedToken = '';
   const request = { headers: { cookie: 'other=1; hanbotorder_session=cookie-jwt' } };
-  const authService = { findCurrentUser: async () => ({ id: 'admin-1', email: 'admin@example.com', name: 'Admin', phone: null, role: UserRole.ADMIN }) };
-  const tokenService = { verifyAccessToken: (token: string) => { verifiedToken = token; return { sub: 'admin-1' }; } };
+  const authService = { findCurrentUser: async () => ({ id: 'customer-1', email: 'customer@example.com', name: 'Customer', phone: null, role: UserRole.CUSTOMER }) };
+  const tokenService = { verifyAccessToken: (token: string) => { verifiedToken = token; return { sub: 'customer-1' }; } };
   const guard = new AuthGuard(authService as never, tokenService as never);
 
   assert.equal(await guard.canActivate(contextFor(request) as never), true);
   assert.equal(verifiedToken, 'cookie-jwt');
-  assert.equal((request as { currentUser?: { role: UserRole } }).currentUser?.role, UserRole.ADMIN);
+  assert.equal((request as { currentUser?: { role: UserRole } }).currentUser?.role, UserRole.CUSTOMER);
+});
+
+test('AuthGuard keeps customer and Admin cookies isolated on the same hostname', async () => {
+  const verifiedTokens: string[] = [];
+  const tokenService = {
+    verifyAccessToken: (token: string) => {
+      verifiedTokens.push(token);
+      return { sub: token === 'admin-jwt' ? 'admin-1' : 'customer-1' };
+    }
+  };
+  const authService = {
+    findCurrentUser: async (userId: string) => ({
+      id: userId,
+      email: `${userId}@example.com`,
+      name: userId,
+      phone: null,
+      role: userId === 'admin-1' ? UserRole.ADMIN : UserRole.CUSTOMER
+    })
+  };
+  const guard = new AuthGuard(authService as never, tokenService as never);
+  const cookie = 'hanbotorder_session=customer-jwt; hanbotorder_admin_session=admin-jwt';
+  const customerRequest = { headers: { cookie } };
+  const adminRequest = {
+    headers: {
+      cookie,
+      'x-hanbotorder-session-scope': 'admin'
+    }
+  };
+
+  assert.equal(await guard.canActivate(contextFor(customerRequest) as never), true);
+  assert.equal(
+    (customerRequest as { currentUser?: { role: UserRole } }).currentUser?.role,
+    UserRole.CUSTOMER
+  );
+  assert.equal(await guard.canActivate(contextFor(adminRequest) as never), true);
+  assert.equal(
+    (adminRequest as { currentUser?: { role: UserRole } }).currentUser?.role,
+    UserRole.ADMIN
+  );
+  assert.deepEqual(verifiedTokens, ['customer-jwt', 'admin-jwt']);
+});
+
+test('AuthGuard rejects an Admin identity stored in the legacy customer cookie', async () => {
+  const request = { headers: { cookie: 'hanbotorder_session=legacy-admin-jwt' } };
+  const authService = {
+    findCurrentUser: async () => ({
+      id: 'admin-1',
+      email: 'admin@example.com',
+      name: 'Admin',
+      phone: null,
+      role: UserRole.ADMIN
+    })
+  };
+  const tokenService = {
+    verifyAccessToken: () => ({ sub: 'admin-1' })
+  };
+  const guard = new AuthGuard(authService as never, tokenService as never);
+
+  await assert.rejects(
+    () => guard.canActivate(contextFor(request) as never),
+    UnauthorizedException
+  );
 });
 
 test('AuthGuard skips an invalid duplicate cookie and accepts the valid one', async () => {
@@ -36,7 +98,7 @@ test('AuthGuard skips an invalid duplicate cookie and accepts the valid one', as
   const authService = {
     findCurrentUser: async (userId: string) => {
       checkedUserIds.push(userId);
-      return { id: 'admin-1', email: 'admin@example.com', name: 'Admin', phone: null, role: UserRole.ADMIN };
+      return { id: 'customer-1', email: 'customer@example.com', name: 'Customer', phone: null, role: UserRole.CUSTOMER };
     }
   };
   const tokenService = {
@@ -47,14 +109,14 @@ test('AuthGuard skips an invalid duplicate cookie and accepts the valid one', as
         throw new UnauthorizedException('Invalid access token.');
       }
 
-      return { sub: 'admin-1' };
+      return { sub: 'customer-1' };
     }
   };
   const guard = new AuthGuard(authService as never, tokenService as never);
 
   assert.equal(await guard.canActivate(contextFor(request) as never), true);
   assert.deepEqual(verifiedTokens, ['invalid-jwt', 'valid-jwt']);
-  assert.deepEqual(checkedUserIds, ['admin-1']);
+  assert.deepEqual(checkedUserIds, ['customer-1']);
 });
 
 test('AuthGuard keeps Bearer support for internal API clients', async () => {

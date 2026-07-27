@@ -122,12 +122,14 @@ model Order {
   id              String          @id @default(cuid())
   orderNumber     String          @unique
   userId          String
-  status          OrderStatus     @default(PENDING_CONFIRMATION)
+  type            OrderType       @default(ORDER)
+  status          OrderStatus     @default(WAITING_DEPOSIT)
   paymentStatus   PaymentStatus   @default(UNPAID)
   subtotal        Decimal         @default(0) @db.Decimal(12, 2)
   shippingFee     Decimal         @default(0) @db.Decimal(12, 2)
   total           Decimal         @default(0) @db.Decimal(12, 2)
   depositRequired Decimal         @default(0) @db.Decimal(12, 2)
+  secondPaymentRequired Decimal   @default(0) @db.Decimal(12, 2)
   paidAmount      Decimal         @default(0) @db.Decimal(12, 2)
   recipientName   String?
   recipientPhone  String?
@@ -143,6 +145,8 @@ model Order {
   payments        Payment[]
   productionJobs  ProductionJob[]
   emailOutbox     EmailOutbox[]
+
+  @@index([type, status, createdAt])
 }
 
 model OrderEvent {
@@ -445,7 +449,11 @@ enum OrderNoteType {
 }
 
 enum OrderStatus {
-  DRAFT
+  WAITING_DEPOSIT
+  DEPOSIT_PAID
+  WAITING_SECOND_PAYMENT
+  SECOND_PAYMENT_PAID
+  SHIPPING
   PENDING_CONFIRMATION
   CONFIRMED
   WAITING_PAYMENT
@@ -455,7 +463,6 @@ enum OrderStatus {
   SHIPPED
   COMPLETED
   CANCELLED
-  REFUNDED
   BLOCKED
 }
 
@@ -465,14 +472,17 @@ enum PaymentEventType {
   WEBHOOK_RECEIVED
   PAYMENT_CONFIRMED
   PAYMENT_FAILED
-  REFUND_CONFIRMED
 }
 
 enum PaymentStatus {
   UNPAID
   PARTIALLY_PAID
   PAID
-  REFUNDED
+}
+
+enum OrderType {
+  ORDER
+  RESIN
 }
 
 enum PaymentRequirement {

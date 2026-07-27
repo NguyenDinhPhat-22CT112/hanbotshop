@@ -1,4 +1,6 @@
 export const sessionCookieName = 'hanbotorder_session';
+export const adminSessionCookieName = 'hanbotorder_admin_session';
+export const sessionScopeHeaderName = 'x-hanbotorder-session-scope';
 
 type CookieResponse = {
   cookie(name: string, value: string, options: Record<string, unknown>): void;
@@ -6,10 +8,18 @@ type CookieResponse = {
 };
 
 export function setSessionCookies(response: CookieResponse, token: string) {
+  setSessionCookie(response, sessionCookieName, token);
+}
+
+export function setAdminSessionCookie(response: CookieResponse, token: string) {
+  setSessionCookie(response, adminSessionCookieName, token);
+}
+
+function setSessionCookie(response: CookieResponse, name: string, token: string) {
   const sharedOptions = cookieOptions();
   const maxAge = readPositiveInt(process.env.JWT_EXPIRES_IN_SECONDS, 60 * 60 * 24 * 7) * 1000;
 
-  response.cookie(sessionCookieName, token, {
+  response.cookie(name, token, {
     ...sharedOptions,
     httpOnly: true,
     maxAge
@@ -17,9 +27,15 @@ export function setSessionCookies(response: CookieResponse, token: string) {
 }
 
 export function clearSessionCookies(response: CookieResponse) {
-  const options = cookieOptions();
+  clearSessionCookie(response, sessionCookieName);
+}
 
-  response.clearCookie(sessionCookieName, options);
+export function clearAdminSessionCookie(response: CookieResponse) {
+  clearSessionCookie(response, adminSessionCookieName);
+}
+
+function clearSessionCookie(response: CookieResponse, name: string) {
+  response.clearCookie(name, cookieOptions());
 }
 
 function cookieOptions() {

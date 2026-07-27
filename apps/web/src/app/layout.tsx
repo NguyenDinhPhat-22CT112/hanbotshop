@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               '@type': 'Organization',
               name: 'Hanbotorder',
               url: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
-              email: 'thaomihi@gmail.com',
+              email: 'hann34567890@gmail.com',
               telephone: '0966480510'
             }).replace(/</g, '\\u003c')
           }}
@@ -51,7 +51,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <strong>Điện thoại:</strong> <a href="tel:0966480510">0966480510</a>
               </p>
               <p>
-                <strong>Email:</strong> <a href="mailto:thaomihi@gmail.com">thaomihi@gmail.com</a>
+                <strong>Email:</strong> <a href="mailto:hann34567890@gmail.com">hann34567890@gmail.com</a>
               </p>
             </address>
 
@@ -73,12 +73,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 <span aria-hidden="true">☎</span>
                 <strong>0966480510</strong>
               </a>
-              <a className="footer-email" href="mailto:thaomihi@gmail.com">
-                thaomihi@gmail.com
+              <a className="footer-email" href="mailto:hann34567890@gmail.com">
+                hann34567890@gmail.com
               </a>
 
               <h3>Kết nối với shop</h3>
-              <a className="footer-email" href="mailto:thaomihi@gmail.com">
+              <a className="footer-email" href="mailto:hann34567890@gmail.com">
                 Gửi email cho Hanbotorder
               </a>
             </section>

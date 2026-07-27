@@ -8,6 +8,7 @@ import { buildQuery, PaginationControls, type ListMeta } from './list-pagination
 type OrderRow = {
   id: string;
   orderNumber: string;
+  type: 'ORDER' | 'RESIN';
   status: string;
   paymentStatus: string;
   total: string;
@@ -25,6 +26,7 @@ type OrderResponse = {
 };
 
 type Filters = {
+  type: 'ORDER' | 'RESIN';
   q: string;
   status: string;
   paymentStatus: string;
@@ -33,6 +35,7 @@ type Filters = {
 };
 
 const defaultFilters: Filters = {
+  type: 'ORDER',
   q: '',
   status: '',
   paymentStatus: '',
@@ -40,7 +43,18 @@ const defaultFilters: Filters = {
   pageSize: 20
 };
 
-const orderStatuses = [
+const orderPurchaseStatuses = [
+  'WAITING_DEPOSIT',
+  'DEPOSIT_PAID',
+  'WAITING_SECOND_PAYMENT',
+  'SECOND_PAYMENT_PAID',
+  'SHIPPING',
+  'COMPLETED',
+  'CANCELLED',
+  'BLOCKED'
+];
+
+const resinStatuses = [
   'PENDING_CONFIRMATION',
   'CONFIRMED',
   'WAITING_PAYMENT',
@@ -50,9 +64,12 @@ const orderStatuses = [
   'SHIPPED',
   'COMPLETED',
   'CANCELLED',
-  'REFUNDED',
   'BLOCKED'
 ];
+
+function statusesFor(type: 'ORDER' | 'RESIN') {
+  return type === 'ORDER' ? orderPurchaseStatuses : resinStatuses;
+}
 
 function formatPrice(value: string) {
   const numericValue = Number(value);
@@ -93,6 +110,7 @@ export function OrdersAdminPanel() {
 
   function applyFilters(formData: FormData) {
     void loadOrders({
+      type: String(formData.get('type') ?? 'ORDER') as Filters['type'],
       q: String(formData.get('q') ?? '').trim(),
       status: String(formData.get('status') ?? ''),
       paymentStatus: String(formData.get('paymentStatus') ?? ''),
@@ -103,7 +121,6 @@ export function OrdersAdminPanel() {
 
   async function updateOrder(orderId: string, formData: FormData) {
     const status = String(formData.get('status') ?? '');
-    const paymentStatus = String(formData.get('paymentStatus') ?? '');
     const trackingCarrier = String(formData.get('trackingCarrier') ?? '').trim();
     const trackingNumber = String(formData.get('trackingNumber') ?? '').trim();
     setMessage('Đang cập nhật đơn hàng...');
@@ -111,9 +128,6 @@ export function OrdersAdminPanel() {
     try {
       if (status) {
         await adminFetch(`/orders/${orderId}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
-      }
-      if (paymentStatus) {
-        await adminFetch(`/orders/${orderId}/payment`, { method: 'PATCH', body: JSON.stringify({ paymentStatus }) });
       }
       if (trackingCarrier && trackingNumber) {
         await adminFetch(`/orders/${orderId}/tracking`, { method: 'PATCH', body: JSON.stringify({ trackingCarrier, trackingNumber }) });
@@ -127,9 +141,26 @@ export function OrdersAdminPanel() {
 
   return (
     <div className="detail-stack">
+      <nav className="row-actions" aria-label="Loại đơn hàng">
+        <button
+          type="button"
+          className={filters.type === 'ORDER' ? undefined : 'secondary-button'}
+          onClick={() => void loadOrders({ ...defaultFilters, type: 'ORDER' })}
+        >
+          Đơn Order
+        </button>
+        <button
+          type="button"
+          className={filters.type === 'RESIN' ? undefined : 'secondary-button'}
+          onClick={() => void loadOrders({ ...defaultFilters, type: 'RESIN' })}
+        >
+          Đơn Resin
+        </button>
+      </nav>
       <section className="admin-panel filter-panel">
         <div className="filter-title"><div><strong>Bộ lọc đơn hàng</strong><span>Tìm theo mã đơn, khách hàng và trạng thái</span></div>{meta ? <small>{meta.total} đơn hàng</small> : null}</div>
         <form className="admin-form filter-form" action={applyFilters}>
+          <input type="hidden" name="type" value={filters.type} />
           <label>
             Search
             <input name="q" defaultValue={filters.q} placeholder="Mã đơn, khách, email, phone" />
@@ -138,7 +169,7 @@ export function OrdersAdminPanel() {
             Status
             <select name="status" defaultValue={filters.status}>
               <option value="">Tất cả</option>
-              {orderStatuses.map((status) => (
+              {statusesFor(filters.type).map((status) => (
                 <option value={status} key={status}>
                   {labelOf(status)}
                 </option>
@@ -152,7 +183,6 @@ export function OrdersAdminPanel() {
               <option value="UNPAID">Chưa thanh toán</option>
               <option value="PARTIALLY_PAID">Thanh toán một phần</option>
               <option value="PAID">Đã thanh toán</option>
-              <option value="REFUNDED">Đã hoàn tiền</option>
             </select>
           </label>
           <label>
@@ -182,28 +212,20 @@ export function OrdersAdminPanel() {
           <form className="table-row order-row order-manage-row" action={(formData) => void updateOrder(order.id, formData)} key={order.id}>
             <strong>
               <a href={`/orders/${encodeURIComponent(order.id)}`}>{order.orderNumber}</a>
-              <small>{order.id}</small>
+              <small>{order.type === 'RESIN' ? 'Đơn Resin' : 'Đơn Order'} · {order.id}</small>
             </strong>
             <span>{order.user.name ?? order.user.email}</span>
             <label>
               <small>Trạng thái</small>
               <select name="status" defaultValue={order.status}>
-                {orderStatuses.map((status) => (
+                {statusesFor(order.type).map((status) => (
                   <option value={status} key={status}>
                     {labelOf(status)}
                   </option>
                 ))}
               </select>
             </label>
-            <label>
-              <small>Thanh toán</small>
-              <select name="paymentStatus" defaultValue={order.paymentStatus}>
-                <option value="UNPAID">Chưa thanh toán</option>
-                <option value="PARTIALLY_PAID">Thanh toán một phần</option>
-                <option value="PAID">Đã thanh toán</option>
-                <option value="REFUNDED">Đã hoàn tiền</option>
-              </select>
-            </label>
+            <span>{labelOf(order.paymentStatus)}</span>
             <div className="tracking-fields">
               <input name="trackingCarrier" defaultValue={order.trackingCarrier ?? ''} placeholder="Đơn vị vận chuyển" />
               <input name="trackingNumber" defaultValue={order.trackingNumber ?? ''} placeholder="Mã tracking" />

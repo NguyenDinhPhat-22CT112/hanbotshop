@@ -10,6 +10,7 @@ import type { AuthenticatedUser } from '../identity/types/authenticated-user';
 import {
   orderListQuerySchema,
   orderNoteSchema,
+  secondPaymentRequestSchema,
   trackingSchema,
   updateOrderPaymentSchema,
   updateOrderStatusSchema
@@ -31,7 +32,8 @@ export class OrdersController {
   @ApiOperation({ summary: 'List orders', description: 'Get paginated order list (customers see own orders, admins see all)' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'pageSize', required: false, type: Number, example: 20 })
-  @ApiQuery({ name: 'status', required: false, enum: ['PENDING_CONFIRMATION', 'CONFIRMED', 'WAITING_PAYMENT', 'PAID', 'IN_PRODUCTION', 'READY_TO_SHIP', 'SHIPPED', 'COMPLETED', 'CANCELLED'] })
+  @ApiQuery({ name: 'type', required: false, enum: ['ORDER', 'RESIN'] })
+  @ApiQuery({ name: 'status', required: false, enum: ['WAITING_DEPOSIT', 'DEPOSIT_PAID', 'WAITING_SECOND_PAYMENT', 'SECOND_PAYMENT_PAID', 'SHIPPING', 'PENDING_CONFIRMATION', 'CONFIRMED', 'WAITING_PAYMENT', 'PAID', 'IN_PRODUCTION', 'READY_TO_SHIP', 'SHIPPED', 'COMPLETED', 'CANCELLED', 'BLOCKED'] })
   @ApiResponse({ status: 200, description: 'Paginated order list' })
   listOrders(@CurrentUser() user: AuthenticatedUser, @Query() query: Record<string, unknown>) {
     const dto = parseZodSchema(orderListQuerySchema, query);
@@ -64,8 +66,8 @@ export class OrdersController {
       properties: {
         status: {
           type: 'string',
-          enum: ['PENDING_CONFIRMATION', 'CONFIRMED', 'WAITING_PAYMENT', 'PAID', 'IN_PRODUCTION', 'READY_TO_SHIP', 'SHIPPED', 'COMPLETED', 'CANCELLED', 'REFUNDED', 'BLOCKED'],
-          example: 'CONFIRMED'
+          enum: ['WAITING_DEPOSIT', 'DEPOSIT_PAID', 'WAITING_SECOND_PAYMENT', 'SECOND_PAYMENT_PAID', 'SHIPPING', 'PENDING_CONFIRMATION', 'CONFIRMED', 'WAITING_PAYMENT', 'PAID', 'IN_PRODUCTION', 'READY_TO_SHIP', 'SHIPPED', 'COMPLETED', 'CANCELLED', 'BLOCKED'],
+          example: 'SHIPPING'
         }
       }
     }
@@ -91,7 +93,7 @@ export class OrdersController {
       properties: {
         paymentStatus: {
           type: 'string',
-          enum: ['UNPAID', 'PARTIALLY_PAID', 'PAID', 'REFUNDED'],
+          enum: ['UNPAID', 'PARTIALLY_PAID', 'PAID'],
           example: 'PAID'
         }
       }
@@ -103,6 +105,31 @@ export class OrdersController {
     const dto = parseZodSchema(updateOrderPaymentSchema, body);
 
     return this.ordersService.updateOrderPayment(user, id, dto);
+  }
+
+  @Patch(':id/second-payment')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Request second payment', description: 'Set the requested second-payment amount for an Order purchase' })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['amount'],
+      properties: {
+        amount: { type: 'number', example: 6000000 }
+      }
+    }
+  })
+  requestSecondPayment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() body: unknown
+  ) {
+    const dto = parseZodSchema(secondPaymentRequestSchema, body);
+
+    return this.ordersService.requestSecondPayment(user, id, dto);
   }
 
   @Patch(':id/tracking')

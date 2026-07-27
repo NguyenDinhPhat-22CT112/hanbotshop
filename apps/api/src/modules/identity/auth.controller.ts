@@ -13,7 +13,12 @@ import {
 import { AuthGuard } from './guards/auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { AuthService } from './services/auth.service';
-import { clearSessionCookies, setSessionCookies } from './session-cookie';
+import {
+  clearAdminSessionCookie,
+  clearSessionCookies,
+  setAdminSessionCookie,
+  setSessionCookies
+} from './session-cookie';
 import type { AuthenticatedUser } from './types/authenticated-user';
 
 type ClientRequest = {
@@ -48,7 +53,7 @@ export class AuthController {
     const dto = parseZodSchema(registerSchema, body);
     const result = await this.authService.register(dto);
 
-    return this.establishSession(response, result);
+    return this.establishSession(response, result, 'customer');
   }
 
   @Post('login')
@@ -90,9 +95,34 @@ export class AuthController {
     @Res({ passthrough: true }) response: CookieResponse
   ) {
     const dto = parseZodSchema(loginSchema, body);
-    const result = await this.authService.login(dto, this.clientIp(request));
+    const result = await this.authService.login(dto, this.clientIp(request), UserRole.CUSTOMER);
 
-    return this.establishSession(response, result);
+    return this.establishSession(response, result, 'customer');
+  }
+
+  @Post('admin-login')
+  @ApiOperation({ summary: 'Admin login', description: 'Authenticate an administrator with an isolated Admin cookie session' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'password'],
+      properties: {
+        email: { type: 'string', format: 'email', example: 'admin@example.com' },
+        password: { type: 'string', example: 'SecurePassword123!' }
+      }
+    }
+  })
+  @ApiResponse({ status: 200, description: 'Administrator successfully authenticated' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials or missing administrator role' })
+  async adminLogin(
+    @Body() body: unknown,
+    @Req() request: ClientRequest,
+    @Res({ passthrough: true }) response: CookieResponse
+  ) {
+    const dto = parseZodSchema(loginSchema, body);
+    const result = await this.authService.login(dto, this.clientIp(request), UserRole.ADMIN);
+
+    return this.establishSession(response, result, 'admin');
   }
 
   @Post('forgot-password')
@@ -116,17 +146,27 @@ export class AuthController {
     const dto = parseZodSchema(resetPasswordSchema, body);
     const result = await this.authService.resetPassword(dto, this.clientIp(request));
 
-    return this.establishSession(response, result);
+    return this.establishSession(
+      response,
+      result,
+      result.user.role === UserRole.ADMIN ? 'admin' : 'customer'
+    );
   }
 
   @Post('logout')
-  @UseGuards(AuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Logout', description: 'Invalidate current session' })
+  @ApiOperation({ summary: 'Logout', description: 'Clear the customer session cookie' })
   @ApiResponse({ status: 200, description: 'Successfully logged out' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
   logout(@Res({ passthrough: true }) response: CookieResponse) {
     clearSessionCookies(response);
+
+    return this.authService.logout();
+  }
+
+  @Post('admin-logout')
+  @ApiOperation({ summary: 'Admin logout', description: 'Clear only the isolated Admin session cookie' })
+  @ApiResponse({ status: 200, description: 'Administrator successfully logged out' })
+  adminLogout(@Res({ passthrough: true }) response: CookieResponse) {
+    clearAdminSessionCookie(response);
 
     return this.authService.logout();
   }
@@ -177,9 +217,14 @@ export class AuthController {
 
   private establishSession(
     response: CookieResponse,
-    result: Awaited<ReturnType<AuthService['login']>>
+    result: Awaited<ReturnType<AuthService['login']>>,
+    scope: 'customer' | 'admin'
   ) {
-    setSessionCookies(response, result.accessToken);
+    if (scope === 'admin') {
+      setAdminSessionCookie(response, result.accessToken);
+    } else {
+      setSessionCookies(response, result.accessToken);
+    }
 
     return {
       tokenType: 'Cookie',

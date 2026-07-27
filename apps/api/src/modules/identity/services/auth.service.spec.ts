@@ -79,6 +79,42 @@ test('login rejects a disabled account without verifying password', async () => 
   assert.equal(audits[0].action, 'LOGIN_FAILED');
 });
 
+test('customer and Admin login flows reject the wrong account role', async () => {
+  const customer = authHarness();
+  const adminUser = { ...activeUser, role: UserRole.ADMIN };
+  const admin = authHarness({ user: adminUser });
+
+  await assert.rejects(
+    () => customer.service.login(
+      { email: activeUser.email, password: 'password123' },
+      '127.0.0.1',
+      UserRole.ADMIN
+    ),
+    UnauthorizedException
+  );
+  await assert.rejects(
+    () => admin.service.login(
+      { email: adminUser.email, password: 'password123' },
+      '127.0.0.1',
+      UserRole.CUSTOMER
+    ),
+    UnauthorizedException
+  );
+});
+
+test('Admin login flow accepts an active administrator', async () => {
+  const adminUser = { ...activeUser, role: UserRole.ADMIN };
+  const { service } = authHarness({ user: adminUser });
+
+  const result = await service.login(
+    { email: adminUser.email, password: 'password123' },
+    '127.0.0.1',
+    UserRole.ADMIN
+  );
+
+  assert.equal(result.user.role, UserRole.ADMIN);
+});
+
 test('admin logins on multiple devices do not replace one another', async () => {
   const admin = { ...activeUser, role: UserRole.ADMIN };
   const { service, updates, signedPayloads } = authHarness({ user: admin });

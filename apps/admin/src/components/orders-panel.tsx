@@ -103,7 +103,12 @@ export function OrdersPanel() {
             <label>
               <small>Trạng thái</small>
               <select name="status" defaultValue={order.status}>
-                <option value="PENDING_CONFIRMATION">Chờ xác nhận</option>
+                <option value="WAITING_DEPOSIT">Chờ thanh toán tiền cọc</option>
+                <option value="DEPOSIT_PAID">Đã thanh toán tiền cọc</option>
+                <option value="WAITING_SECOND_PAYMENT">Chờ thanh toán đợt 2</option>
+                <option value="SECOND_PAYMENT_PAID">Đã thanh toán đợt 2</option>
+                <option value="SHIPPING">Đang vận chuyển</option>
+                <option value="PENDING_CONFIRMATION">Chờ xác nhận Resin</option>
                 <option value="CONFIRMED">Đã xác nhận</option>
                 <option value="WAITING_PAYMENT">Chờ thanh toán</option>
                 <option value="PAID">Đã thanh toán</option>
@@ -112,7 +117,6 @@ export function OrdersPanel() {
                 <option value="SHIPPED">Đang giao</option>
                 <option value="COMPLETED">Hoàn tất</option>
                 <option value="CANCELLED">Đã hủy</option>
-                <option value="REFUNDED">Đã hoàn tiền</option>
                 <option value="BLOCKED">Đang vướng</option>
               </select>
             </label>
@@ -122,7 +126,6 @@ export function OrdersPanel() {
                 <option value="UNPAID">Chưa thanh toán</option>
                 <option value="PARTIALLY_PAID">Thanh toán một phần</option>
                 <option value="PAID">Đã thanh toán</option>
-                <option value="REFUNDED">Đã hoàn tiền</option>
               </select>
             </label>
             <div className="tracking-fields">

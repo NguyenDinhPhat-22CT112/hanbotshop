@@ -1,8 +1,13 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
 import { AuthService } from '../services/auth.service';
 import { TokenService } from '../services/token.service';
 import type { AuthRequest } from '../types/authenticated-user';
-import { sessionCookieName } from '../session-cookie';
+import {
+  adminSessionCookieName,
+  sessionCookieName,
+  sessionScopeHeaderName
+} from '../session-cookie';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -13,13 +18,17 @@ export class AuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<AuthRequest>();
-    const tokens = this.extractTokens(request);
+    const { tokens, requiredRole } = this.extractTokens(request);
     let lastUnauthorizedError: UnauthorizedException | undefined;
 
     for (const token of tokens) {
       try {
         const payload = this.tokenService.verifyAccessToken(token);
         const user = await this.authService.findCurrentUser(payload.sub);
+
+        if (requiredRole && user.role !== requiredRole) {
+          throw new UnauthorizedException('Authentication session has the wrong account role.');
+        }
 
         request.currentUser = {
           id: user.id,
@@ -46,18 +55,27 @@ export class AuthGuard implements CanActivate {
     const headerValue = Array.isArray(authorization) ? authorization[0] : authorization;
 
     if (headerValue?.startsWith('Bearer ')) {
-      return [headerValue.slice('Bearer '.length).trim()];
+      return {
+        tokens: [headerValue.slice('Bearer '.length).trim()],
+        requiredRole: undefined
+      };
     }
 
     const cookieHeader = request.headers.cookie;
     const serializedCookies = Array.isArray(cookieHeader) ? cookieHeader[0] : cookieHeader;
-    const tokens = this.readCookies(serializedCookies, sessionCookieName);
+    const scopeHeader = request.headers[sessionScopeHeaderName];
+    const scope = Array.isArray(scopeHeader) ? scopeHeader[0] : scopeHeader;
+    const cookieName = scope === 'admin' ? adminSessionCookieName : sessionCookieName;
+    const tokens = this.readCookies(serializedCookies, cookieName);
 
     if (tokens.length === 0) {
       throw new UnauthorizedException('Missing authentication session.');
     }
 
-    return tokens;
+    return {
+      tokens,
+      requiredRole: scope === 'admin' ? UserRole.ADMIN : UserRole.CUSTOMER
+    };
   }
 
   private readCookies(cookieHeader: string | undefined, name: string) {

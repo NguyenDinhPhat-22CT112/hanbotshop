@@ -8,13 +8,16 @@ import { formatAddress, formatDateTime, formatPrice } from './admin-format';
 type OrderDetail = {
   id: string;
   orderNumber: string;
+  type: 'ORDER' | 'RESIN';
   status: string;
   paymentStatus: string;
   subtotal: string;
   shippingFee: string;
   total: string;
   depositRequired: string;
+  secondPaymentRequired: string;
   paidAmount: string;
+  remainingAmount: string;
   recipientName?: string | null;
   recipientPhone?: string | null;
   shippingAddress: unknown;
@@ -54,7 +57,18 @@ type TimelineItem = {
   createdAt: string;
 };
 
-const orderStatuses = [
+const orderPurchaseStatuses = [
+  'WAITING_DEPOSIT',
+  'DEPOSIT_PAID',
+  'WAITING_SECOND_PAYMENT',
+  'SECOND_PAYMENT_PAID',
+  'SHIPPING',
+  'COMPLETED',
+  'CANCELLED',
+  'BLOCKED'
+];
+
+const resinStatuses = [
   'PENDING_CONFIRMATION',
   'CONFIRMED',
   'WAITING_PAYMENT',
@@ -64,11 +78,12 @@ const orderStatuses = [
   'SHIPPED',
   'COMPLETED',
   'CANCELLED',
-  'REFUNDED',
   'BLOCKED'
 ];
 
-const paymentStatuses = ['UNPAID', 'REFUNDED'];
+function statusesFor(type: 'ORDER' | 'RESIN') {
+  return type === 'ORDER' ? orderPurchaseStatuses : resinStatuses;
+}
 
 export function AdminOrderDetail({ id }: { id: string }) {
   const [order, setOrder] = useState<OrderDetail | null>(null);
@@ -107,7 +122,6 @@ export function AdminOrderDetail({ id }: { id: string }) {
 
   async function updateOrder(formData: FormData) {
     const status = String(formData.get('status') ?? '');
-    const paymentStatus = String(formData.get('paymentStatus') ?? '');
     const trackingCarrier = String(formData.get('trackingCarrier') ?? '').trim();
     const trackingNumber = String(formData.get('trackingNumber') ?? '').trim();
     setMessage('Dang cap nhat don hang...');
@@ -115,10 +129,6 @@ export function AdminOrderDetail({ id }: { id: string }) {
     try {
       if (status) {
         await adminFetch(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
-      }
-
-      if (paymentStatus) {
-        await adminFetch(`/orders/${id}/payment`, { method: 'PATCH', body: JSON.stringify({ paymentStatus }) });
       }
 
       if (trackingCarrier || trackingNumber) {
@@ -132,6 +142,39 @@ export function AdminOrderDetail({ id }: { id: string }) {
       setMessage('Da cap nhat don hang.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Khong cap nhat duoc don hang.');
+    }
+  }
+
+  async function requestSecondPayment(formData: FormData) {
+    const amount = Number(formData.get('amount') ?? 0);
+    setMessage('Đang tạo yêu cầu thanh toán đợt 2...');
+
+    try {
+      await adminFetch(`/orders/${id}/second-payment`, {
+        method: 'PATCH',
+        body: JSON.stringify({ amount })
+      });
+      await loadOrder();
+      setMessage('Đã chuyển đơn sang chờ thanh toán đợt 2.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Không tạo được yêu cầu thanh toán đợt 2.');
+    }
+  }
+
+  async function recordCodPayment(formData: FormData) {
+    const amount = Number(formData.get('amount') ?? 0);
+    const note = String(formData.get('note') ?? '').trim();
+    setMessage('Đang ghi nhận tiền thu khi giao hàng...');
+
+    try {
+      await adminFetch('/payments/manual-receipt', {
+        method: 'POST',
+        body: JSON.stringify({ orderId: id, amount, note })
+      });
+      await loadOrder();
+      setMessage('Đã ghi nhận khoản tiền thu khi giao hàng.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Không ghi nhận được khoản tiền COD.');
     }
   }
 
@@ -197,6 +240,10 @@ export function AdminOrderDetail({ id }: { id: string }) {
               </dd>
             </div>
             <div>
+              <dt>Loai don</dt>
+              <dd>{order.type === 'RESIN' ? 'Don Resin' : 'Don Order'}</dd>
+            </div>
+            <div>
               <dt>Lien he</dt>
               <dd>{[order.recipientName, order.recipientPhone].filter(Boolean).join(' / ') || '-'}</dd>
             </div>
@@ -229,9 +276,19 @@ export function AdminOrderDetail({ id }: { id: string }) {
               <dt>Coc can thu</dt>
               <dd>{formatPrice(order.depositRequired)}</dd>
             </div>
+            {order.type === 'ORDER' ? (
+              <div>
+                <dt>Yeu cau dot 2</dt>
+                <dd>{formatPrice(order.secondPaymentRequired)}</dd>
+              </div>
+            ) : null}
             <div>
               <dt>Da thu</dt>
               <dd>{formatPrice(order.paidAmount)}</dd>
+            </div>
+            <div>
+              <dt>Con thieu</dt>
+              <dd>{formatPrice(order.remainingAmount)}</dd>
             </div>
             <div>
               <dt>Tracking</dt>
@@ -247,17 +304,7 @@ export function AdminOrderDetail({ id }: { id: string }) {
           <label>
             Trang thai
             <select name="status" defaultValue={order.status}>
-              {orderStatuses.map((status) => (
-                <option value={status} key={status}>
-                  {labelOf(status)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Thanh toan
-            <select name="paymentStatus" defaultValue={order.paymentStatus}>
-              {paymentStatuses.map((status) => (
+              {statusesFor(order.type).map((status) => (
                 <option value={status} key={status}>
                   {labelOf(status)}
                 </option>
@@ -280,6 +327,48 @@ export function AdminOrderDetail({ id }: { id: string }) {
           </div>
         </form>
       </section>
+
+      {order.type === 'ORDER' && order.status === 'DEPOSIT_PAID' ? (
+        <section className="admin-panel">
+          <h2>Yeu cau thanh toan dot 2</h2>
+          <p>
+            Con lai {formatPrice(order.remainingAmount)}. Admin nhap so tien can thu trong dot 2;
+            phan con lai se duoc tinh la COD khi giao hang.
+          </p>
+          <form className="admin-form compact-form" action={requestSecondPayment}>
+            <label>
+              So tien dot 2
+              <input
+                name="amount"
+                type="number"
+                min="1"
+                max={order.remainingAmount}
+                defaultValue={Math.round(Number(order.remainingAmount) * 0.8)}
+                required
+              />
+            </label>
+            <button type="submit">Gui yeu cau thanh toan dot 2</button>
+          </form>
+        </section>
+      ) : null}
+
+      {order.type === 'ORDER' && order.status === 'SHIPPING' && Number(order.remainingAmount) > 0 ? (
+        <section className="admin-panel">
+          <h2>Ghi nhan tien COD</h2>
+          <p>Khach con thieu {formatPrice(order.remainingAmount)} khi nhan hang.</p>
+          <form className="admin-form compact-form" action={recordCodPayment}>
+            <label>
+              So tien da thu
+              <input name="amount" type="number" min="1" max={order.remainingAmount} defaultValue={order.remainingAmount} required />
+            </label>
+            <label>
+              Ghi chu
+              <input name="note" defaultValue="Shipper da thu tien con lai." />
+            </label>
+            <button type="submit">Xac nhan da thu COD</button>
+          </form>
+        </section>
+      ) : null}
 
       <section className="table-panel">
         <div className="table-row detail-item-row table-head">

@@ -8,7 +8,7 @@ import { AuthGuard } from '../identity/guards/auth.guard';
 import { RolesGuard } from '../identity/guards/roles.guard';
 import type { AuthenticatedUser } from '../identity/types/authenticated-user';
 import { UserRole } from '@prisma/client';
-import { checkoutSessionSchema, paymentWebhookSchema } from './dto/payment.dto';
+import { checkoutSessionSchema, manualReceiptSchema, paymentWebhookSchema } from './dto/payment.dto';
 import { PaymentService } from './payment.service';
 
 type RawBodyRequest = {
@@ -57,7 +57,7 @@ export class PaymentController {
             orderId: { type: 'string', example: 'cm123abc456' },
             provider: { type: 'string', example: 'manual_bank_transfer' },
             amount: { type: 'string', example: '1500000.00' },
-            status: { type: 'string', enum: ['UNPAID', 'PAID', 'REFUNDED'], example: 'UNPAID' }
+            status: { type: 'string', enum: ['UNPAID', 'PAID'], example: 'UNPAID' }
           }
         },
         checkoutUrl: {
@@ -88,6 +88,31 @@ export class PaymentController {
     });
   }
 
+  @Post('manual-receipt')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Record COD receipt',
+    description: 'Record money collected while an Order purchase is shipping'
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['orderId', 'amount'],
+      properties: {
+        orderId: { type: 'string' },
+        amount: { type: 'number', example: 2000000 },
+        note: { type: 'string', example: 'Shipper collected the remaining balance.' }
+      }
+    }
+  })
+  recordManualReceipt(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
+    const dto = parseZodSchema(manualReceiptSchema, body);
+
+    return this.paymentService.recordManualReceipt(user, dto);
+  }
+
   @Get(':id')
   @UseGuards(AuthGuard)
   @ApiBearerAuth('JWT-auth')
@@ -104,14 +129,14 @@ export class PaymentController {
         provider: { type: 'string', example: 'placeholder' },
         providerReference: { type: 'string', example: 'checkout_1234567890' },
         amount: { type: 'string', example: '1500000.00' },
-        status: { type: 'string', enum: ['UNPAID', 'PAID', 'REFUNDED'] },
+        status: { type: 'string', enum: ['UNPAID', 'PAID'] },
         events: {
           type: 'array',
           items: {
             type: 'object',
             properties: {
               id: { type: 'string' },
-              type: { type: 'string', enum: ['CHECKOUT_CREATED', 'PAYMENT_CONFIRMED', 'PAYMENT_FAILED', 'REFUND_CONFIRMED'] },
+              type: { type: 'string', enum: ['CHECKOUT_CREATED', 'PAYMENT_CONFIRMED', 'PAYMENT_FAILED'] },
               createdAt: { type: 'string', format: 'date-time' }
             }
           }
@@ -159,7 +184,7 @@ export class PaymentController {
         paymentId: { type: 'string', example: 'cm789xyz123' },
         event: {
           type: 'string',
-          enum: ['payment.confirmed', 'payment.failed', 'refund.confirmed'],
+          enum: ['payment.confirmed', 'payment.failed'],
           example: 'payment.confirmed'
         },
         payload: {

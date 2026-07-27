@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException } from '@nestjs/common';
-import { OrderStatus, PaymentRequirement, PaymentStatus, Prisma, ProductAvailability } from '@prisma/client';
+import { OrderStatus, OrderType, PaymentRequirement, PaymentStatus, Prisma, ProductAvailability } from '@prisma/client';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { CheckoutService } from './checkout.service';
@@ -61,8 +61,9 @@ test('checkout snapshots product and variant prices and clears cart in one trans
     items: { create: Array<{ productSnapshot: { name: string }; variantSnapshot: { sku: string }; unitPrice: Prisma.Decimal; totalPrice: Prisma.Decimal }> };
   };
 
-  assert.equal(result.id, 'order-1');
-  assert.equal(data.status, OrderStatus.PENDING_CONFIRMATION);
+  assert.equal(result.orders[0]?.id, 'order-1');
+  assert.equal(data.status, OrderStatus.WAITING_DEPOSIT);
+  assert.equal((createData as { type: OrderType }).type, OrderType.ORDER);
   assert.equal(data.paymentStatus, PaymentStatus.UNPAID);
   assert.equal(data.subtotal.toString(), '300');
   assert.equal(data.total.toString(), '330');
@@ -77,6 +78,7 @@ test('checkout does not clear cart when order creation fails', async () => {
   let deleteCalled = false;
   const tx = {
     order: { create: async () => { throw new Error('database failure'); } },
+    user: { findUnique: async () => null },
     cartItem: { deleteMany: async () => { deleteCalled = true; } }
   };
   const prisma = { $transaction: async (handler: (client: typeof tx) => unknown) => handler(tx) };
@@ -128,11 +130,57 @@ test('checkout rejects insufficient tracked inventory', async () => {
   item.variant.trackInventory = true;
   const tx = {
     productVariant: { updateMany: async () => ({ count: 0 }) },
-    product: { updateMany: async () => ({ count: 0 }) }
+    product: { updateMany: async () => ({ count: 0 }) },
+    user: { findUnique: async () => null }
   };
   const prisma = { $transaction: async (handler: (client: typeof tx) => unknown) => handler(tx) };
   const cartService = { ensureCart: async () => ({ id: 'cart-1', items: [item] }), getItemUnitPrice: () => new Prisma.Decimal(150) };
   const service = new CheckoutService(prisma as never, cartService as never, {} as never);
 
   await assert.rejects(() => service.checkout('user-1', checkoutDto), ConflictException);
+});
+
+test('mixed cart is split into separate Order and Resin orders', async () => {
+  const orderItem = cartItem();
+  const resinItem = cartItem();
+  resinItem.id = 'item-2';
+  resinItem.productId = 'product-2';
+  resinItem.variantId = 'variant-2';
+  resinItem.product.id = 'product-2';
+  resinItem.product.name = 'Resin Figure';
+  resinItem.product.slug = 'resin-figure';
+
+  const created: Array<{ type: OrderType; status: OrderStatus; items: { create: Array<{ productId: string }> } }> = [];
+  let createIndex = 0;
+  const tx = {
+    order: {
+      create: async ({ data }: { data: (typeof created)[number] }) => {
+        created.push(data);
+        createIndex += 1;
+        return { id: `order-${createIndex}`, orderNumber: `HB-${createIndex}` };
+      }
+    },
+    user: { findUnique: async () => null },
+    cartItem: { deleteMany: async () => ({ count: 2 }) }
+  };
+  const prisma = { $transaction: async (handler: (client: typeof tx) => unknown) => handler(tx) };
+  const cartService = {
+    ensureCart: async () => ({ id: 'cart-1', items: [orderItem, resinItem] }),
+    getItemUnitPrice: () => new Prisma.Decimal(150)
+  };
+  const orders = {
+    findOrderOrThrow: async (id: string) => ({ id }),
+    serializeOrder: (value: unknown) => value
+  };
+  const service = new CheckoutService(prisma as never, cartService as never, orders as never);
+
+  const result = await service.checkout('user-1', checkoutDto);
+
+  assert.equal(result.orders.length, 2);
+  assert.deepEqual(created.map(({ type, status }) => ({ type, status })), [
+    { type: OrderType.ORDER, status: OrderStatus.WAITING_DEPOSIT },
+    { type: OrderType.RESIN, status: OrderStatus.PENDING_CONFIRMATION }
+  ]);
+  assert.equal(created[0].items.create[0]?.productId, 'product-1');
+  assert.equal(created[1].items.create[0]?.productId, 'product-2');
 });

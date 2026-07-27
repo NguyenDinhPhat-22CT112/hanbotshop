@@ -1,8 +1,17 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-import { AuditAction, OrderEventType, OrderStatus, PaymentEventType, PaymentStatus, Prisma, UserRole } from '@prisma/client';
+import {
+  AuditAction,
+  OrderEventType,
+  OrderStatus,
+  OrderType,
+  PaymentEventType,
+  PaymentStatus,
+  Prisma,
+  UserRole
+} from '@prisma/client';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import type { CheckoutSessionDto, PaymentWebhookDto } from './dto/payment.dto';
+import type { CheckoutSessionDto, ManualReceiptDto, PaymentWebhookDto } from './dto/payment.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationType } from '@prisma/client';
 
@@ -47,12 +56,9 @@ export class PaymentService {
           throw new ForbiddenException('You do not have permission to pay this order.');
         }
 
-        this.assertOrderCanCreatePayment(order.status, order.paymentStatus);
+        this.assertOrderCanCreatePayment(order.type, order.status, order.paymentStatus);
         const provider = this.getProvider();
-        const firstPaymentTarget = order.depositRequired.greaterThan(0) ? order.depositRequired : order.total;
-        const amountDue = order.paidAmount.lessThan(firstPaymentTarget)
-          ? firstPaymentTarget.minus(order.paidAmount)
-          : order.total.minus(order.paidAmount);
+        const amountDue = this.paymentAmountDue(order);
 
         if (amountDue.lessThanOrEqualTo(0)) {
           throw new BadRequestException('The order has no outstanding amount to pay.');
@@ -75,15 +81,7 @@ export class PaymentService {
             providerReference: transferContent,
             amount: amountDue,
             status: PaymentStatus.UNPAID,
-            payload: {
-              providerMode: 'manual_bank_transfer',
-              bankCode: process.env.BANK_TRANSFER_BANK_CODE,
-              bankName: process.env.BANK_TRANSFER_BANK_NAME,
-              accountNumber: process.env.BANK_TRANSFER_ACCOUNT_NUMBER,
-              accountName: process.env.BANK_TRANSFER_ACCOUNT_NAME,
-              transferContent,
-              instructions: process.env.BANK_TRANSFER_INSTRUCTIONS
-            },
+            payload: this.bankTransferDetails(transferContent),
             events: {
               create: {
                 type: PaymentEventType.CHECKOUT_CREATED,
@@ -103,20 +101,58 @@ export class PaymentService {
     );
   }
 
-  private assertOrderCanCreatePayment(status: OrderStatus, paymentStatus: PaymentStatus) {
+  private assertOrderCanCreatePayment(
+    type: OrderType,
+    status: OrderStatus,
+    paymentStatus: PaymentStatus
+  ) {
     if (paymentStatus !== PaymentStatus.UNPAID && paymentStatus !== PaymentStatus.PARTIALLY_PAID) {
-      throw new BadRequestException('A payment session cannot be created for an order that is fully paid or refunded.');
+      throw new BadRequestException('A payment session cannot be created for a fully paid order.');
     }
 
-    const payableStatuses: OrderStatus[] = [
-      OrderStatus.PENDING_CONFIRMATION,
-      OrderStatus.CONFIRMED,
-      OrderStatus.WAITING_PAYMENT
-    ];
+    const payableStatuses: OrderStatus[] = type === OrderType.ORDER
+      ? [OrderStatus.WAITING_DEPOSIT, OrderStatus.WAITING_SECOND_PAYMENT]
+      : [
+          OrderStatus.PENDING_CONFIRMATION,
+          OrderStatus.CONFIRMED,
+          OrderStatus.WAITING_PAYMENT
+        ];
 
     if (!payableStatuses.includes(status)) {
       throw new BadRequestException('The order is not in a payable state.');
     }
+  }
+
+  private paymentAmountDue(order: {
+    type: OrderType;
+    status: OrderStatus;
+    total: Prisma.Decimal;
+    depositRequired: Prisma.Decimal;
+    secondPaymentRequired: Prisma.Decimal;
+    paidAmount: Prisma.Decimal;
+  }) {
+    if (order.type === OrderType.ORDER) {
+      if (order.status === OrderStatus.WAITING_DEPOSIT) {
+        const depositTarget = order.depositRequired.greaterThan(0)
+          ? order.depositRequired
+          : order.total;
+
+        return depositTarget.minus(order.paidAmount);
+      }
+
+      return Prisma.Decimal.min(
+        order.secondPaymentRequired,
+        order.total.minus(order.paidAmount)
+      );
+    }
+
+    const firstPaymentTarget = order.depositRequired.greaterThan(0)
+      ? order.depositRequired
+      : order.total;
+
+    return order.paidAmount.lessThan(firstPaymentTarget)
+      ? firstPaymentTarget.minus(order.paidAmount)
+      : order.total.minus(order.paidAmount);
   }
 
   private checkoutSessionResponse(
@@ -164,9 +200,17 @@ export class PaymentService {
       const orderPaymentStatus = paidAmount.greaterThanOrEqualTo(payment.order.total)
         ? PaymentStatus.PAID
         : PaymentStatus.PARTIALLY_PAID;
+      const nextOrderStatus = this.orderStatusAfterPayment(
+        payment.order.type,
+        payment.order.status
+      );
       await tx.order.update({
         where: { id: payment.orderId },
-        data: { paidAmount, paymentStatus: orderPaymentStatus }
+        data: {
+          paidAmount,
+          paymentStatus: orderPaymentStatus,
+          status: nextOrderStatus
+        }
       });
 
       await tx.orderEvent.create({
@@ -177,6 +221,16 @@ export class PaymentService {
           payload: { before: payment.order.paymentStatus, after: orderPaymentStatus, paymentId: id, paidAmount: paidAmount.toString() }
         }
       });
+      if (nextOrderStatus !== payment.order.status) {
+        await tx.orderEvent.create({
+          data: {
+            orderId: payment.orderId,
+            actorId: actor.id,
+            type: OrderEventType.STATUS_CHANGED,
+            payload: { before: payment.order.status, after: nextOrderStatus, paymentId: id }
+          }
+        });
+      }
       await tx.auditLog.create({
         data: {
           actorId: actor.id,
@@ -198,7 +252,13 @@ export class PaymentService {
           orderNumber: payment.order.orderNumber,
           type: NotificationType.PAYMENT_CONFIRMED,
           title: `Đã xác nhận thanh toán ${payment.order.orderNumber}`,
-          body: orderPaymentStatus === PaymentStatus.PAID ? 'Đơn hàng đã được thanh toán đủ.' : 'Khoản đặt cọc đã được xác nhận.',
+          body: nextOrderStatus === OrderStatus.DEPOSIT_PAID
+            ? 'Khoản đặt cọc đã được xác nhận. Đơn đang chờ hàng về.'
+            : nextOrderStatus === OrderStatus.SECOND_PAYMENT_PAID
+              ? `Đã xác nhận thanh toán đợt 2. Còn lại ${Prisma.Decimal.max(payment.order.total.minus(paidAmount), new Prisma.Decimal(0)).toString()} VND.`
+              : orderPaymentStatus === PaymentStatus.PAID
+                ? 'Đơn hàng đã được thanh toán đủ.'
+                : 'Khoản thanh toán đã được xác nhận.',
           dedupeKey: `payment-confirmed:${id}`
         });
       }
@@ -215,6 +275,124 @@ export class PaymentService {
     return this.serializePayment(updated);
   }
 
+  private orderStatusAfterPayment(type: OrderType, status: OrderStatus) {
+    if (type !== OrderType.ORDER) {
+      return status;
+    }
+
+    if (status === OrderStatus.WAITING_DEPOSIT) {
+      return OrderStatus.DEPOSIT_PAID;
+    }
+
+    if (status === OrderStatus.WAITING_SECOND_PAYMENT) {
+      return OrderStatus.SECOND_PAYMENT_PAID;
+    }
+
+    return status;
+  }
+
+  async recordManualReceipt(actor: Actor, dto: ManualReceiptDto) {
+    if (actor.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only administrators can record a manual receipt.');
+    }
+
+    const order = await this.prisma.order.findUnique({ where: { id: dto.orderId } });
+
+    if (!order) {
+      throw new NotFoundException('Order not found.');
+    }
+
+    if (order.type !== OrderType.ORDER || order.status !== OrderStatus.SHIPPING) {
+      throw new BadRequestException('COD receipts can only be recorded while an Order purchase is shipping.');
+    }
+
+    const amount = new Prisma.Decimal(dto.amount).toDecimalPlaces(2);
+    const remainingAmount = order.total.minus(order.paidAmount);
+
+    if (amount.greaterThan(remainingAmount)) {
+      throw new BadRequestException('The received amount cannot exceed the remaining order balance.');
+    }
+
+    const updatedPayment = await this.prisma.$transaction(async (tx) => {
+      const paidAmount = order.paidAmount.plus(amount);
+      const orderPaymentStatus = paidAmount.greaterThanOrEqualTo(order.total)
+        ? PaymentStatus.PAID
+        : PaymentStatus.PARTIALLY_PAID;
+
+      await tx.order.update({
+        where: { id: order.id },
+        data: { paidAmount, paymentStatus: orderPaymentStatus }
+      });
+
+      const payment = await tx.payment.create({
+        data: {
+          orderId: order.id,
+          provider: 'cash_on_delivery',
+          providerReference: `COD ${order.orderNumber}`,
+          amount,
+          status: PaymentStatus.PAID,
+          payload: {
+            confirmationMode: 'cash_on_delivery',
+            note: dto.note,
+            confirmedBy: actor.id
+          },
+          events: {
+            create: {
+              type: PaymentEventType.PAYMENT_CONFIRMED,
+              payload: {
+                confirmationMode: 'cash_on_delivery',
+                confirmedBy: actor.id
+              }
+            }
+          }
+        }
+      });
+
+      await tx.orderEvent.create({
+        data: {
+          orderId: order.id,
+          actorId: actor.id,
+          type: OrderEventType.PAYMENT_STATUS_CHANGED,
+          payload: {
+            before: order.paymentStatus,
+            after: orderPaymentStatus,
+            paymentId: payment.id,
+            paidAmount: paidAmount.toString()
+          }
+        }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          actorId: actor.id,
+          action: AuditAction.PAYMENT_STATUS_CHANGE,
+          resourceType: 'Payment',
+          resourceId: payment.id,
+          before: { paidAmount: order.paidAmount.toString() },
+          after: {
+            paidAmount: paidAmount.toString(),
+            paymentStatus: orderPaymentStatus,
+            orderId: order.id
+          },
+          metadata: { confirmationMode: 'cash_on_delivery' }
+        }
+      });
+
+      const result = await tx.payment.findUnique({
+        where: { id: payment.id },
+        include: this.paymentInclude()
+      });
+
+      if (!result) {
+        throw new NotFoundException('Payment not found.');
+      }
+
+      return result;
+    });
+
+    return this.serializePayment(updatedPayment);
+  }
+
   private getProvider() {
     const provider = process.env.PAYMENT_GATEWAY_PROVIDER?.trim() || 'manual_bank_transfer';
 
@@ -229,6 +407,32 @@ export class PaymentService {
     const prefix = process.env.BANK_TRANSFER_CONTENT_PREFIX?.trim() || 'HANBOT';
 
     return `${prefix} ${orderNumber}`.replace(/[^A-Za-z0-9 -]/g, '').replace(/\s+/g, ' ').trim();
+  }
+
+  private bankTransferDetails(transferContent: string | null) {
+    const values: Record<string, string> = {
+      providerMode: 'manual_bank_transfer'
+    };
+    const configuredValues = {
+      bankCode: process.env.BANK_TRANSFER_BANK_CODE,
+      bankName: process.env.BANK_TRANSFER_BANK_NAME,
+      accountNumber: process.env.BANK_TRANSFER_ACCOUNT_NUMBER,
+      accountName: process.env.BANK_TRANSFER_ACCOUNT_NAME,
+      qrUrl: process.env.BANK_TRANSFER_QR_URL,
+      instructions: process.env.BANK_TRANSFER_INSTRUCTIONS
+    };
+
+    for (const [key, value] of Object.entries(configuredValues)) {
+      if (value?.trim()) {
+        values[key] = value.trim();
+      }
+    }
+
+    if (transferContent) {
+      values.transferContent = transferContent;
+    }
+
+    return values;
   }
 
   async getPayment(actor: Actor, id: string) {
@@ -331,10 +535,6 @@ export class PaymentService {
       return PaymentEventType.PAYMENT_FAILED;
     }
 
-    if (event === 'refund.confirmed') {
-      return PaymentEventType.REFUND_CONFIRMED;
-    }
-
     return PaymentEventType.WEBHOOK_RECEIVED;
   }
 
@@ -407,8 +607,11 @@ export class PaymentService {
           id: true,
           orderNumber: true,
           userId: true,
+          type: true,
+          status: true,
           total: true,
           depositRequired: true,
+          secondPaymentRequired: true,
           paidAmount: true,
           paymentStatus: true
         }
@@ -420,13 +623,21 @@ export class PaymentService {
   }
 
   private serializePayment(payment: Prisma.PaymentGetPayload<{ include: ReturnType<PaymentService['paymentInclude']> }>) {
+    const persistedPayload = payment.payload && typeof payment.payload === 'object' && !Array.isArray(payment.payload)
+      ? payment.payload
+      : {};
+
     return {
       ...payment,
+      payload: payment.provider === 'manual_bank_transfer'
+        ? { ...persistedPayload, ...this.bankTransferDetails(payment.providerReference) }
+        : payment.payload,
       amount: payment.amount.toString(),
       order: {
         ...payment.order,
         total: payment.order.total.toString()
         ,depositRequired: payment.order.depositRequired.toString()
+        ,secondPaymentRequired: payment.order.secondPaymentRequired?.toString() ?? '0'
         ,paidAmount: payment.order.paidAmount.toString()
       }
     };

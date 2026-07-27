@@ -39,12 +39,12 @@ export class AuthService {
     return this.authResponse(user);
   }
 
-  async login(dto: LoginDto, ipAddress = 'unknown') {
+  async login(dto: LoginDto, ipAddress = 'unknown', requiredRole?: UserRole) {
     const email = this.normalizeEmail(dto.email);
     const user = await this.prisma.user.findUnique({ where: { email } });
 
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      await this.auditLoginFailed(email, ipAddress, 'invalid_credentials_or_inactive_user');
+    if (!user || user.status !== UserStatus.ACTIVE || (requiredRole && user.role !== requiredRole)) {
+      await this.auditLoginFailed(email, ipAddress, 'invalid_credentials_role_or_inactive_user');
       throw new UnauthorizedException('Invalid email or password.');
     }
 
