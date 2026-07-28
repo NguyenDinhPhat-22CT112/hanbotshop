@@ -23,6 +23,17 @@ export const createCategorySchema = z.object({
 
 export const updateCategorySchema = createCategorySchema.partial();
 
+export const createTagSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  slug: z.string().trim().min(1).max(100)
+});
+
+export const updateTagSchema = createTagSchema.partial();
+
+export const tagListQuerySchema = z.object({
+  q: z.string().trim().max(80).optional()
+});
+
 export const createProductVariantSchema = z.object({
   sku: z.string().min(1).max(120).optional().nullable(),
   name: z.string().min(1).max(160),
@@ -100,6 +111,9 @@ export const adminProductListQuerySchema = productListQuerySchema.extend({
 
 export type CreateCategoryDto = z.infer<typeof createCategorySchema>;
 export type UpdateCategoryDto = z.infer<typeof updateCategorySchema>;
+export type CreateTagDto = z.infer<typeof createTagSchema>;
+export type UpdateTagDto = z.infer<typeof updateTagSchema>;
+export type TagListQueryDto = z.infer<typeof tagListQuerySchema>;
 export type CreateProductVariantDto = z.infer<typeof createProductVariantSchema>;
 export type UpdateProductVariantDto = z.infer<typeof updateProductVariantSchema>;
 export type CreateProductDto = z.infer<typeof createProductSchema>;

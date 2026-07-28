@@ -6,13 +6,18 @@ import type {
   CreateCategoryDto,
   CreateProductDto,
   CreateProductVariantDto,
+  CreateTagDto,
   ProductImageDto,
   ProductListQueryDto,
+  TagListQueryDto,
   UpdateCategoryDto,
   UpdateProductImageDto,
   UpdateProductDto,
+  UpdateTagDto,
   UpdateProductVariantDto
 } from './dto/catalog.dto';
+
+const systemTagSlugs = new Set(['order', 'resin']);
 
 @Injectable()
 export class CatalogService {
@@ -82,6 +87,96 @@ export class CatalogService {
       where: { id },
       data: { status: CategoryStatus.ARCHIVED }
     });
+  }
+
+  async listTags(query: TagListQueryDto) {
+    const tags = await this.prisma.tag.findMany({
+      where: query.q
+        ? {
+            OR: [
+              { name: { contains: query.q, mode: 'insensitive' } },
+              { slug: { contains: query.q, mode: 'insensitive' } }
+            ]
+          }
+        : undefined,
+      include: {
+        _count: {
+          select: { products: true }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    return {
+      data: tags.map((tag) => ({
+        ...tag,
+        isSystem: systemTagSlugs.has(tag.slug)
+      }))
+    };
+  }
+
+  async createTag(dto: CreateTagDto) {
+    const slug = this.slugify(dto.slug);
+
+    if (!slug) {
+      throw new ConflictException('Tag slug is invalid.');
+    }
+
+    await this.ensureTagSlugAvailable(slug);
+
+    return this.prisma.tag.create({
+      data: {
+        name: dto.name.trim(),
+        slug
+      }
+    });
+  }
+
+  async updateTag(id: string, dto: UpdateTagDto) {
+    const tag = await this.ensureTagExists(id);
+
+    if (systemTagSlugs.has(tag.slug)) {
+      throw new ConflictException('System tags cannot be edited.');
+    }
+
+    const slug = dto.slug === undefined ? undefined : this.slugify(dto.slug);
+
+    if (dto.slug !== undefined && !slug) {
+      throw new ConflictException('Tag slug is invalid.');
+    }
+
+    if (slug) {
+      await this.ensureTagSlugAvailable(slug, id);
+    }
+
+    return this.prisma.tag.update({
+      where: { id },
+      data: {
+        name: dto.name?.trim(),
+        slug
+      },
+      include: {
+        _count: {
+          select: { products: true }
+        }
+      }
+    });
+  }
+
+  async deleteTag(id: string) {
+    const tag = await this.ensureTagExists(id);
+
+    if (systemTagSlugs.has(tag.slug)) {
+      throw new ConflictException('System tags cannot be deleted.');
+    }
+
+    await this.prisma.tag.delete({ where: { id } });
+
+    return {
+      id,
+      deleted: true,
+      affectedProducts: tag._count.products
+    };
   }
 
   async listProducts(query: ProductListQueryDto) {
@@ -629,6 +724,31 @@ export class CatalogService {
     }
 
     return category;
+  }
+
+  private async ensureTagExists(id: string) {
+    const tag = await this.prisma.tag.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: { products: true }
+        }
+      }
+    });
+
+    if (!tag) {
+      throw new NotFoundException('Tag not found.');
+    }
+
+    return tag;
+  }
+
+  private async ensureTagSlugAvailable(slug: string, currentId?: string) {
+    const tag = await this.prisma.tag.findUnique({ where: { slug } });
+
+    if (tag && tag.id !== currentId) {
+      throw new ConflictException('Tag slug is already used.');
+    }
   }
 
   private async ensureProductExists(id: string) {

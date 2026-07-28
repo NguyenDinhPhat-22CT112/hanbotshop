@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { adminFetch, getAdminToken } from '../lib/browser-api';
 import { labelOf } from '../lib/labels';
 import { ProductImageUploader } from './product-image-uploader';
+import { TagPicker } from './tag-picker';
 
 type Category = {
   id: string;
@@ -57,18 +58,12 @@ function emptyVariant(): ProductVariant {
   return { name: '', sku: '', price: '', isActive: true, trackInventory: false, inventoryQuantity: 0 };
 }
 
-function splitTags(value: FormDataEntryValue | null) {
-  return String(value ?? '')
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
 export function AdminProductEditor({ id }: { id: string }) {
   const [product, setProduct] = useState<ProductDetail | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [variants, setVariants] = useState<ProductVariant[]>([]);
   const [images, setImages] = useState<ProductImage[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [message, setMessage] = useState('Dang tai san pham...');
 
   async function loadProduct() {
@@ -86,6 +81,11 @@ export function AdminProductEditor({ id }: { id: string }) {
       setProduct(productPayload);
       setVariants(productPayload.variants?.length ? productPayload.variants : [emptyVariant()]);
       setImages(productPayload.images ?? []);
+      setSelectedTags(
+        productPayload.tags
+          ?.map((tag) => tag.name)
+          .filter((name) => !['order', 'resin'].includes(name.toLowerCase())) ?? []
+      );
       setCategories(categoriesPayload.data);
       setMessage('');
     } catch (error) {
@@ -120,6 +120,8 @@ export function AdminProductEditor({ id }: { id: string }) {
           sortOrder: Number.isFinite(Number(image.sortOrder)) ? Number(image.sortOrder) : index
         }))
         .filter((image) => image.url);
+      const availability = String(formData.get('availability') ?? 'PRE_ORDER');
+      const systemTag = availability === 'ORDER' ? 'order' : 'resin';
 
       await adminFetch(`/products/${id}`, {
         method: 'PATCH',
@@ -130,7 +132,7 @@ export function AdminProductEditor({ id }: { id: string }) {
           description: String(formData.get('description') ?? '') || null,
           categoryId: String(formData.get('categoryId') ?? '') || null,
           status: String(formData.get('status') ?? 'DRAFT'),
-          availability: String(formData.get('availability') ?? 'PRE_ORDER'),
+          availability,
           basePrice: String(formData.get('basePrice') ?? '') || null,
           compareAtPrice: String(formData.get('compareAtPrice') ?? '') || null,
           preorderOpenAt: toIsoDate(formData.get('preorderOpenAt')),
@@ -140,7 +142,7 @@ export function AdminProductEditor({ id }: { id: string }) {
           depositPercent: Number(formData.get('depositPercent') ?? 100),
           trackInventory: formData.get('trackInventory') === 'on',
           inventoryQuantity: Number(formData.get('inventoryQuantity') ?? 0),
-          tags: splitTags(formData.get('tags')),
+          tags: [...selectedTags, systemTag],
           variants: cleanVariants,
           images: cleanImages
         })
@@ -256,10 +258,9 @@ export function AdminProductEditor({ id }: { id: string }) {
             Du kien san sang
             <input name="estimatedReadyAt" type="datetime-local" defaultValue={toLocalDate(product.estimatedReadyAt)} />
           </label>
-          <label className="wide-field">
-            Tags
-            <input name="tags" defaultValue={product.tags?.map((tag) => tag.name).join(', ') ?? ''} />
-          </label>
+          <div className="wide-field">
+            <TagPicker selected={selectedTags} onChange={setSelectedTags} />
+          </div>
           <label className="wide-field">
             Mo ta
             <textarea name="description" defaultValue={product.description ?? ''} />

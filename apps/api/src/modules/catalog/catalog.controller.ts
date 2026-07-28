@@ -11,11 +11,14 @@ import {
   createCategorySchema,
   createProductSchema,
   createProductVariantSchema,
+  createTagSchema,
   productImageSchema,
   productListQuerySchema,
+  tagListQuerySchema,
   updateCategorySchema,
   updateProductImageSchema,
   updateProductSchema,
+  updateTagSchema,
   updateProductVariantSchema,
 } from './dto/catalog.dto';
 
@@ -83,6 +86,58 @@ export class CatalogController {
   @ApiResponse({ status: 404, description: 'Category not found' })
   deleteCategory(@Param('id') id: string) {
     return this.catalogService.deleteCategory(id);
+  }
+
+  @Get('tags')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'List tags', description: 'Search tags and include product usage counts (Admin only)' })
+  @ApiQuery({ name: 'q', required: false, type: String, description: 'Search by tag name or slug' })
+  @ApiResponse({ status: 200, description: 'Tag list' })
+  listTags(@Query() query: Record<string, unknown>) {
+    const dto = parseZodSchema(tagListQuerySchema, query);
+
+    return this.catalogService.listTags(dto);
+  }
+
+  @Post('tags')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Create tag', description: 'Create a reusable product tag (Admin only)' })
+  @ApiResponse({ status: 201, description: 'Tag created' })
+  @ApiResponse({ status: 409, description: 'Tag slug already exists' })
+  createTag(@Body() body: unknown) {
+    const dto = parseZodSchema(createTagSchema, body);
+
+    return this.catalogService.createTag(dto);
+  }
+
+  @Patch('tags/:id')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update tag', description: 'Update a reusable product tag (Admin only)' })
+  @ApiParam({ name: 'id', description: 'Tag ID' })
+  @ApiResponse({ status: 200, description: 'Tag updated' })
+  @ApiResponse({ status: 409, description: 'System tag or duplicate slug' })
+  updateTag(@Param('id') id: string, @Body() body: unknown) {
+    const dto = parseZodSchema(updateTagSchema, body);
+
+    return this.catalogService.updateTag(id, dto);
+  }
+
+  @Delete('tags/:id')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Delete tag', description: 'Delete a tag and remove it from related products (Admin only)' })
+  @ApiParam({ name: 'id', description: 'Tag ID' })
+  @ApiResponse({ status: 200, description: 'Tag deleted' })
+  @ApiResponse({ status: 409, description: 'System tags cannot be deleted' })
+  deleteTag(@Param('id') id: string) {
+    return this.catalogService.deleteTag(id);
   }
 
   @Get('products')
