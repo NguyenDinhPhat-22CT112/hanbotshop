@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { parseZodSchema } from '../../common/utils/parse-zod-schema';
 import { CurrentUser } from '../identity/decorators/current-user.decorator';
@@ -139,6 +139,22 @@ export class FileController {
   @ApiResponse({ status: 403, description: 'Forbidden - Cannot access other user files' })
   getFile(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.fileService.getFile(user, id);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Delete file',
+    description: 'Delete an unused file from cloud storage and remove its database record (Admin only)'
+  })
+  @ApiParam({ name: 'id', description: 'File ID' })
+  @ApiResponse({ status: 200, description: 'File deleted from cloud storage and database' })
+  @ApiResponse({ status: 404, description: 'File not found' })
+  @ApiResponse({ status: 409, description: 'File is still used by a product or print request' })
+  deleteFile(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.fileService.deleteFile(user, id);
   }
 
   @Patch(':id/confirm')

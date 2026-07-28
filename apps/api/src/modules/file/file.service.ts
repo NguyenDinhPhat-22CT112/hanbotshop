@@ -1,4 +1,4 @@
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { FileUploadStatus, UserRole } from '@prisma/client';
@@ -92,6 +92,58 @@ export class FileService {
         confirmedAt: new Date()
       }
     });
+  }
+
+  async deleteFile(actor: Actor, id: string) {
+    if (actor.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only administrators can delete files.');
+    }
+
+    const file = await this.prisma.file.findUnique({ where: { id } });
+
+    if (!file) {
+      throw new NotFoundException('File not found.');
+    }
+
+    const [productImageCount, printRequestCount] = await Promise.all([
+      this.prisma.productImage.count({
+        where: file.url
+          ? {
+              OR: [{ fileId: file.id }, { url: file.url }]
+            }
+          : { fileId: file.id }
+      }),
+      file.url
+        ? this.prisma.printRequest.count({
+            where: {
+              imageUrls: {
+                has: file.url
+              }
+            }
+          })
+        : Promise.resolve(0)
+    ]);
+
+    if (productImageCount > 0 || printRequestCount > 0) {
+      throw new ConflictException(
+        'File is currently in use. Remove it from the related product or print request before deleting it.'
+      );
+    }
+
+    const { bucket, client } = this.storageClient();
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: bucket,
+        Key: file.storageKey
+      })
+    );
+    await this.prisma.file.delete({ where: { id: file.id } });
+
+    return {
+      id: file.id,
+      deleted: true,
+      cloudObjectDeleted: true
+    };
   }
 
   async getPublicObject(storageKey: string) {

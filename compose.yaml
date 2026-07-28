@@ -25,6 +25,10 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: 3001
+      # The default Compose stack is exposed directly over HTTP on ports
+      # 3000/3002. Override to true when HTTPS terminates in front of it.
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+      AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-}
       DATABASE_URL: postgresql://${POSTGRES_USER:-hanbotorder}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hanbotorder}?schema=public
       LOG_DIR: /app/logs
     depends_on:

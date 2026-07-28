@@ -40,6 +40,7 @@ export function MediaPanel() {
   const [lookupId, setLookupId] = useState('');
   const [message, setMessage] = useState('Dang tai media...');
   const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function loadFiles() {
     if (!getAdminToken()) {
@@ -128,6 +129,33 @@ export function MediaPanel() {
     }
   }
 
+  async function deleteFile(file: MediaFile) {
+    const confirmed = window.confirm(
+      `Xóa vĩnh viễn “${file.originalName}”?\n\nTệp sẽ bị xóa khỏi Cloudflare R2 và thư viện. Thao tác này không thể hoàn tác.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(file.id);
+    setMessage(`Đang xóa “${file.originalName}”...`);
+
+    try {
+      await adminFetch(`/files/${file.id}`, { method: 'DELETE' });
+      setFiles((current) => current.filter((item) => item.id !== file.id));
+      setMessage(`Đã xóa “${file.originalName}” khỏi thư viện và Cloudflare R2.`);
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : 'Không xóa được tệp. Tệp có thể đang được sử dụng.'
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div className="detail-stack">
       <section className="detail-two-column">
@@ -181,6 +209,14 @@ export function MediaPanel() {
             <span className="action-cell"><details><summary>Hành động <b>⌄</b></summary><div>
               {file.url ? <a href={file.url} target="_blank" rel="noreferrer">Mở tệp</a> : null}
               {file.uploadStatus !== 'CONFIRMED' ? <button type="button" onClick={() => void confirmFile(file.id)}>Kiểm tra và xác nhận</button> : null}
+              <button
+                type="button"
+                className="danger-menu-item"
+                disabled={deletingId === file.id}
+                onClick={() => void deleteFile(file)}
+              >
+                {deletingId === file.id ? 'Đang xóa...' : 'Xóa tệp'}
+              </button>
             </div></details></span>
           </div>
         ))}
