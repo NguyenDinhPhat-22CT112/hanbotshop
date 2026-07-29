@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { UserRole } from '@prisma/client';
 import { parseZodSchema } from '../../common/utils/parse-zod-schema';
 import { CurrentUser } from './decorators/current-user.decorator';
@@ -56,6 +57,8 @@ export class AuthController {
     return this.establishSession(response, result, 'customer');
   }
 
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   @ApiOperation({ summary: 'Login', description: 'Authenticate user and establish a Secure HttpOnly cookie session' })
   @ApiBody({
@@ -100,6 +103,8 @@ export class AuthController {
     return this.establishSession(response, result, 'customer');
   }
 
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('admin-login')
   @ApiOperation({ summary: 'Admin login', description: 'Authenticate an administrator with an isolated Admin cookie session' })
   @ApiBody({

@@ -65,7 +65,7 @@ export function ProductSearch({ initialQuery = '', placeholder = 'Tìm kiếm s�
 
         if (redirectOnSubmit) {
             // From header - navigate to collection page with search
-            router.push(`/collections/tat-ca-san-pham?q=${encodeURIComponent(query.trim())}`);
+            router.push(`/san-pham?q=${encodeURIComponent(query.trim())}`);
         } else {
             // Already on collection page - update URL via parent component
             // This would be handled by the parent's filter update mechanism

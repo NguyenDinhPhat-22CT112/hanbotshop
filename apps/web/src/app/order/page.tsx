@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 export default function OrderPage() {
-  redirect('/collections/tat-ca-san-pham?availability=ORDER');
+  redirect('/san-pham?availability=ORDER');
 }
 
 export const metadata: Metadata = {

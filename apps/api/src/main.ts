@@ -15,10 +15,8 @@ async function bootstrap() {
   app.setGlobalPrefix('api/v1');
   app.enableCors({
     origin: [
-      process.env.WEB_URL ?? 'http://localhost:3000',
-      process.env.ADMIN_URL ?? 'http://localhost:3002',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:3002'
+      'http://hanbotorder.id.vn',
+      'http://admin.hanbotorder.id.vn',
     ],
     credentials: true
   });

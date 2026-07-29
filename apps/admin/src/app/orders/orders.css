@@ -1,0 +1,40 @@
+
+
+.order-row {
+  grid-template-columns: 1.25fr 1.1fr 1.05fr 1.05fr 1.25fr 0.85fr 0.65fr;
+}
+
+.user-order-row {
+  grid-template-columns: 1.2fr 1fr 1fr 1fr 1.1fr;
+}
+
+.table-panel .table-row>button[type="submit"],
+.order-manage-row>button,
+.production-manage-row>button {
+  min-height: 36px;
+  border-radius: 8px;
+}
+
+.order-manage-row select,
+.order-manage-row input,
+.production-manage-row select,
+.production-manage-row input {
+  min-height: 38px;
+  border-color: #e2e5ea;
+  background: #fbfcfd;
+}
+
+.order-manage-row label small,
+.production-manage-row label small {
+  color: #8a93a0;
+  letter-spacing: .03em;
+}
+
+.order-count {
+  color: #697281 !important;
+}
+
+.order-count b {
+  color: #232832;
+  font-size: 15px;
+}

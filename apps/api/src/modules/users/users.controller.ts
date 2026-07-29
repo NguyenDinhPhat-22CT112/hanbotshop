@@ -12,6 +12,7 @@ import {
   createUserSchema,
   updateAddressSchema,
   updateProfileSchema,
+  updateUserPasswordSchema,
   updateUserRoleSchema,
   updateUserStatusSchema,
   userListQuerySchema
@@ -248,6 +249,29 @@ export class UsersController {
     const dto = parseZodSchema(updateUserRoleSchema, body);
 
     return this.usersService.updateRole(user.id, id, dto);
+  }
+
+  @Patch(':id/password')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Set a new password for a user (Admin only)' })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['password'],
+      properties: {
+        password: { type: 'string', minLength: 8, example: 'SecurePassword123!' }
+      }
+    }
+  })
+  @ApiResponse({ status: 200, description: 'User password updated' })
+  @ApiResponse({ status: 403, description: 'Cannot change your own password here' })
+  updatePassword(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() body: unknown) {
+    const dto = parseZodSchema(updateUserPasswordSchema, body);
+
+    return this.usersService.updatePassword(user.id, id, dto);
   }
 
   @Get(':id/orders')

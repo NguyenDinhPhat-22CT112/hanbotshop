@@ -7,6 +7,7 @@ import type {
   CreateUserDto,
   UpdateAddressDto,
   UpdateProfileDto,
+  UpdateUserPasswordDto,
   UpdateUserRoleDto,
   UpdateUserStatusDto,
   UserListQueryDto
@@ -194,6 +195,36 @@ export class UsersService {
     });
 
     return user;
+  }
+
+  async updatePassword(actorId: string, id: string, dto: UpdateUserPasswordDto) {
+    this.assertNotSelf(actorId, id, 'password');
+
+    const before = await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true, email: true }
+    });
+
+    if (!before) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const passwordHash = await this.passwordService.hashPassword(dto.password);
+    await this.prisma.user.update({
+      where: { id },
+      data: { passwordHash },
+      select: { id: true }
+    });
+
+    await this.auditService.record({
+      actorId,
+      action: AuditAction.PASSWORD_RESET_COMPLETED,
+      resourceType: 'User',
+      resourceId: id,
+      metadata: { source: 'admin-user-management', email: before.email }
+    });
+
+    return { success: true };
   }
 
   async getUserOrders(id: string) {

@@ -27,7 +27,7 @@ function pageUrl(searchParams: PageProps['searchParams'], page: number) {
   }
   if (page > 1) params.set('page', String(page));
   const query = params.toString();
-  return `/collections/tat-ca-san-pham${query ? `?${query}` : ''}`;
+  return `/san-pham${query ? `?${query}` : ''}`;
 }
 
 function CollectionProductCard({ product }: { product: ProductCardModel }) {
@@ -142,7 +142,7 @@ export default async function AllProductsCollectionPage({ searchParams }: PagePr
             <section className="nz-empty-state" role="alert">
               <h2>Chưa tải được sản phẩm</h2>
               <p>Dịch vụ sản phẩm đang tạm thời gián đoạn. Vui lòng thử lại sau ít phút.</p>
-              <a href="/collections/tat-ca-san-pham" className="nz-clear-filters-btn">
+              <a href="/san-pham" className="nz-clear-filters-btn">
                 Thử tải lại
               </a>
             </section>
@@ -173,7 +173,7 @@ export default async function AllProductsCollectionPage({ searchParams }: PagePr
             <section className="nz-empty-state">
               <h2>Không tìm thấy sản phẩm</h2>
               <p>Không có sản phẩm nào phù hợp với bộ lọc của bạn.</p>
-              <a href="/collections/tat-ca-san-pham" className="nz-clear-filters-btn">
+              <a href="/san-pham" className="nz-clear-filters-btn">
                 Xóa bộ lọc
               </a>
             </section>
@@ -186,5 +186,5 @@ export default async function AllProductsCollectionPage({ searchParams }: PagePr
 export const metadata: Metadata = {
   title: 'Sản phẩm',
   description: 'Danh sách figure, mô hình sưu tầm, hàng có sẵn và sản phẩm pre-order tại Hanbotorder.',
-  alternates: { canonical: '/collections/tat-ca-san-pham' }
+  alternates: { canonical: '/san-pham' }
 };

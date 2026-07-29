@@ -17,6 +17,16 @@ const nextConfig = {
     outputFileTracingRoot: workspaceRoot
   },
   transpilePackages: ['@hanbotorder/types'],
+  async redirects() {
+    return [
+      {
+        source: '/categories',
+        has: [{ type: 'query', key: 'tab', value: 'tags' }],
+        destination: '/categories/tags',
+        permanent: true
+      }
+    ];
+  },
   async rewrites() {
     return [
       {

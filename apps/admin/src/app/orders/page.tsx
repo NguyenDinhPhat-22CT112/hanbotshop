@@ -1,3 +1,4 @@
+import './orders.css';
 import { OrdersAdminPanel } from '../../components/orders-admin-panel';
 
 export default function AdminOrdersPage() {

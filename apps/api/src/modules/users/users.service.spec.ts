@@ -353,6 +353,41 @@ describe('UsersService', () => {
     });
 
     // ============================================================================
+    // ADMIN PASSWORD RESET
+    // ============================================================================
+
+    it('updatePassword stores only a hash and audits the admin action', async () => {
+        let updatedData: any = null;
+        let auditEntry: any = null;
+        service = new UsersService(prisma, auditService, {
+            hashPassword: async (password: string) => `hashed:${password}`
+        } as never);
+        prisma.user.findUnique = async () => ({ id: 'user1', email: 'user@example.com' });
+        prisma.user.update = async (args: any) => {
+            updatedData = args.data;
+            return { id: 'user1' };
+        };
+        auditService.record = async (entry: any) => {
+            auditEntry = entry;
+        };
+
+        const result = await service.updatePassword('admin1', 'user1', { password: 'new-password-123' });
+
+        assert.deepEqual(result, { success: true });
+        assert.equal(updatedData.passwordHash, 'hashed:new-password-123');
+        assert.equal(auditEntry.action, AuditAction.PASSWORD_RESET_COMPLETED);
+        assert.equal(auditEntry.metadata.source, 'admin-user-management');
+        assert.equal(JSON.stringify(auditEntry).includes('new-password-123'), false);
+    });
+
+    it('updatePassword prevents an admin from setting their own password', async () => {
+        await assert.rejects(
+            () => service.updatePassword('admin1', 'admin1', { password: 'new-password-123' }),
+            ForbiddenException
+        );
+    });
+
+    // ============================================================================
     // USER ORDERS
     // ============================================================================
 

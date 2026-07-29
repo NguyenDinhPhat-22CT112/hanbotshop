@@ -73,7 +73,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
       <nav className="product-breadcrumb" aria-label="Đường dẫn">
         <a href="/">Trang chủ</a>
         <span>/</span>
-        <a href="/collections/tat-ca-san-pham">{product.category}</a>
+        <a href="/san-pham">{product.category}</a>
         <span>/</span>
         <span>{product.name}</span>
       </nav>
@@ -180,7 +180,7 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
             <nav className="product-tags" aria-label="Tag sản phẩm">
               <strong>Tags:</strong>
               {tagLinks.map((tag) => (
-                <a href={`/collections/tat-ca-san-pham?tags=${encodeURIComponent(tag.slug)}`} key={tag.slug}>{tag.name}</a>
+                <a href={`/san-pham?tags=${encodeURIComponent(tag.slug)}`} key={tag.slug}>{tag.name}</a>
               ))}
             </nav>
           ) : null}

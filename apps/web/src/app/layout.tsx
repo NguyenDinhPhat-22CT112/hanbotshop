@@ -57,11 +57,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
 
             <nav className="footer-support" aria-label="Hỗ trợ khách hàng">
               <h2>Hỗ trợ khách hàng</h2>
-              <a href="/collections/tat-ca-san-pham">Sản phẩm</a>
-              <a href="/pages/chinh-sach-mua-hang">Chính sách mua hàng</a>
-              <a href="/pages/chinh-sach-thanh-toan">Chính sách thanh toán</a>
-              <a href="/pages/chinh-sach-giao-hang">Chính sách giao hàng</a>
-              <a href="/pages/chinh-sach-doi-tra">Chính sách đổi trả</a>
+              <a href="/san-pham">Sản phẩm</a>
+              <a href="/chinh-sach/mua-hang">Chính sách mua hàng</a>
+              <a href="/chinh-sach/thanh-toan">Chính sách thanh toán</a>
+              <a href="/chinh-sach/giao-hang">Chính sách giao hàng</a>
+              <a href="/chinh-sach/doi-tra">Chính sách đổi trả</a>
               <a href="/account/orders">Theo dõi đơn hàng</a>
               <a href="/account">Thông tin tài khoản</a>
               <a href="/cart">Giỏ hàng</a>

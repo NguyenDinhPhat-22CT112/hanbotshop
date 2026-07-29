@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 
 export default function ResinPage() {
-  redirect('/collections/tat-ca-san-pham?tags=resin');
+  redirect('/san-pham?tags=resin');
 }
 
 export const metadata: Metadata = {

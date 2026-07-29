@@ -81,7 +81,7 @@ export function CollectionClientNZ({ initialCategories, initialFilterOptions, cu
       const queryString = buildQueryString(merged);
 
       startTransition(() => {
-        router.push(`/collections/tat-ca-san-pham${queryString ? `?${queryString}` : ''}`);
+        router.push(`/san-pham${queryString ? `?${queryString}` : ''}`);
       });
     },
     [currentFilters, router]
@@ -129,7 +129,7 @@ export function CollectionClientNZ({ initialCategories, initialFilterOptions, cu
     setDraftMinPrice(priceBounds.min);
     setDraftMaxPrice(priceBounds.max);
     startTransition(() => {
-      router.push('/collections/tat-ca-san-pham');
+      router.push('/san-pham');
     });
   };
 

@@ -109,7 +109,7 @@ export function CartClient() {
         <h2>{state === 'error' ? 'Chưa tải được giỏ hàng' : 'Đang tải giỏ hàng'}</h2>
         <p>{message}</p>
         <div className="cart-empty-actions">
-          <a className="cart-secondary-link" href="/collections/tat-ca-san-pham">
+          <a className="cart-secondary-link" href="/san-pham">
             Tiếp tục mua hàng
           </a>
         </div>
@@ -122,7 +122,7 @@ export function CartClient() {
       <div className="cart-empty-state">
         <h2>Giỏ hàng đang trống</h2>
         <p>Bạn chưa có sản phẩm nào trong giỏ hàng.</p>
-        <a className="cart-continue-shopping" href="/collections/tat-ca-san-pham">
+        <a className="cart-continue-shopping" href="/san-pham">
           Tiếp tục mua hàng
         </a>
       </div>
@@ -208,7 +208,7 @@ export function CartClient() {
             THANH TOÁN
           </a>
 
-          <a className="cart-continue-shopping" href="/collections/tat-ca-san-pham">
+          <a className="cart-continue-shopping" href="/san-pham">
             ← Tiếp tục mua hàng
           </a>
 

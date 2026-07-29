@@ -1,3 +1,4 @@
+import './catalog.css';
 import { CatalogAdminPanel } from '../../components/catalog-admin-panel';
 
 export default function AdminCatalogPage() {

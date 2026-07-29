@@ -1,3 +1,4 @@
+import './audit-logs.css';
 import { AuditLogsPanel } from '../../components/audit-logs-panel';
 
 export default function AdminAuditLogsPage() {

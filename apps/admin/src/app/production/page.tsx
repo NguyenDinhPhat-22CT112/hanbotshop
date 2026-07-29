@@ -1,3 +1,4 @@
+import './production.css';
 import { ProductionAdminPanel } from '../../components/production-admin-panel';
 
 export default function AdminProductionPage() {

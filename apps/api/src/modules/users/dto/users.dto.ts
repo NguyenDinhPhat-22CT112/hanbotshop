@@ -22,6 +22,10 @@ export const updateUserRoleSchema = z.object({
   role: z.nativeEnum(UserRole)
 });
 
+export const updateUserPasswordSchema = z.object({
+  password: z.string().min(8).max(128)
+});
+
 export const createUserSchema = z.object({
   email: z.string().email().transform((value) => value.trim().toLowerCase()),
   password: z.string().min(8).max(128),
@@ -49,6 +53,7 @@ export type UpdateProfileDto = z.infer<typeof updateProfileSchema>;
 export type UserListQueryDto = z.infer<typeof userListQuerySchema>;
 export type UpdateUserStatusDto = z.infer<typeof updateUserStatusSchema>;
 export type UpdateUserRoleDto = z.infer<typeof updateUserRoleSchema>;
+export type UpdateUserPasswordDto = z.infer<typeof updateUserPasswordSchema>;
 export type CreateUserDto = z.infer<typeof createUserSchema>;
 export type AddressDto = z.infer<typeof addressSchema>;
 export type UpdateAddressDto = z.infer<typeof updateAddressSchema>;

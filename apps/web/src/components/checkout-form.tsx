@@ -175,8 +175,8 @@ export function CheckoutForm() {
       <label className="checkout-policy-consent">
         <input name="acceptedPolicies" type="checkbox" required />
         <span>
-          Tôi đã kiểm tra thông tin và đồng ý với <a href="/pages/chinh-sach-mua-hang">chính sách mua hàng</a>,{' '}
-          <a href="/pages/chinh-sach-thanh-toan">thanh toán</a> và <a href="/pages/chinh-sach-doi-tra">hủy/đổi trả</a>.
+          Tôi đã kiểm tra thông tin và đồng ý với <a href="/chinh-sach/mua-hang">chính sách mua hàng</a>,{' '}
+          <a href="/chinh-sach/thanh-toan">thanh toán</a> và <a href="/chinh-sach/doi-tra">hủy/đổi trả</a>.
         </span>
       </label>
       <button type="submit" disabled={isSubmitting || isLoading || !cart?.items.length}>
@@ -194,7 +194,7 @@ export function CheckoutForm() {
         {!isLoading && !cart?.items.length ? (
           <div className="checkout-empty" role="alert">
             <p>Giỏ hàng đang trống.</p>
-            <a href="/collections/tat-ca-san-pham">Tiếp tục mua hàng</a>
+            <a href="/san-pham">Tiếp tục mua hàng</a>
           </div>
         ) : null}
         <div className="checkout-item-list">

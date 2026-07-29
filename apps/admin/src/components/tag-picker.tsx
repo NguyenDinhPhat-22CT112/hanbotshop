@@ -95,7 +95,7 @@ export function TagPicker({
           <strong id="product-tags-title">Tag sản phẩm</strong>
           <span>Kéo tag từ danh sách bên trái sang vùng đã chọn, hoặc bấm trực tiếp vào tag.</span>
         </div>
-        <a href="/categories?tab=tags">Quản lý tag</a>
+        <a href="/categories/tags">Quản lý tag</a>
       </div>
 
       <div className="tag-picker-grid">

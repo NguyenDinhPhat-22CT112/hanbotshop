@@ -1,3 +1,4 @@
+import './users.css';
 import { UsersAdminPanel } from '../../components/users-admin-panel';
 
 export default function AdminUsersPage() {

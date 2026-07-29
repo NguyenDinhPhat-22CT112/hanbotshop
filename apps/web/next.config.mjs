@@ -16,13 +16,28 @@ const nextConfig = {
     outputFileTracingRoot: workspaceRoot
   },
   transpilePackages: ['@hanbotorder/ui', '@hanbotorder/types'],
-  async rewrites() {
+  async redirects() {
     return [
-      {
-        source: '/api/v1/:path*',
-        destination: `${internalApiUrl}/:path*`
-      }
+      { source: '/collections/tat-ca-san-pham', destination: '/san-pham', permanent: true },
+      { source: '/pages/chinh-sach-mua-hang', destination: '/chinh-sach/mua-hang', permanent: true },
+      { source: '/pages/chinh-sach-thanh-toan', destination: '/chinh-sach/thanh-toan', permanent: true },
+      { source: '/pages/chinh-sach-giao-hang', destination: '/chinh-sach/giao-hang', permanent: true },
+      { source: '/pages/chinh-sach-doi-tra', destination: '/chinh-sach/doi-tra', permanent: true }
     ];
+  },
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: '/order', destination: '/san-pham?availability=ORDER' },
+        { source: '/resin', destination: '/san-pham?tags=resin' }
+      ],
+      afterFiles: [
+        {
+          source: '/api/v1/:path*',
+          destination: `${internalApiUrl}/:path*`
+        }
+      ]
+    };
   }
 };
 

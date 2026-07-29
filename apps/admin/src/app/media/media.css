@@ -1,0 +1,19 @@
+/**
+ * Media Management Styles
+ * 
+ * This file contains CSS specific to the media management page.
+ * Includes: media table row layout and action cell positioning
+ * 
+ * Imported by: apps/admin/src/app/media/page.tsx
+ * Depends on: globals.css (for base table and action-cell styles)
+ * 
+ * Requirements: 2.9, 7.1, 7.4
+ */
+
+.media-row {
+    grid-template-columns: 1.4fr 0.9fr 0.6fr 0.8fr 1fr 1fr;
+}
+
+.media-row .action-cell {
+    justify-self: start;
+}

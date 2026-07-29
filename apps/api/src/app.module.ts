@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { CommonModule } from './common/common.module';
 import { validateEnv } from './common/utils/validate-env';
 import { AuditModule } from './modules/audit.module';
@@ -21,6 +22,10 @@ import { PrintRequestModule } from './modules/print-request/print-request.module
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000, // 60 seconds
+      limit: 100, // 100 requests per IP
+    }]),
     CommonModule,
     PrismaModule,
     NotificationsModule,
