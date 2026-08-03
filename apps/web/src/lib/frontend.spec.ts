@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculateDepositRequired, formatVnd } from './checkout-utils';
+import { calculateDepositRequired, depositUnitPrice, formatVnd } from './checkout-utils';
 import { safeInternalPath } from './navigation';
 import { getCatalogViewState } from './catalog-state';
 
@@ -21,6 +21,21 @@ test('calculateDepositRequired combines full payments and item deposits', () => 
 test('formatVnd formats valid amounts and preserves invalid values', () => {
   assert.match(formatVnd(120000), /120[.\s]000đ/);
   assert.equal(formatVnd('liên hệ'), 'liên hệ');
+});
+
+test('depositUnitPrice returns deposit price for deposit lines and full price otherwise', () => {
+  assert.equal(
+    depositUnitPrice({ unitPrice: '1000000', paymentRequirement: 'DEPOSIT', product: { depositPercent: 30 } }),
+    '300000'
+  );
+  assert.equal(
+    depositUnitPrice({ unitPrice: '1000000', paymentRequirement: 'FULL', product: { depositPercent: 30 } }),
+    '1000000'
+  );
+  assert.equal(
+    depositUnitPrice({ unitPrice: '1000000', paymentRequirement: 'DEPOSIT', product: { depositPercent: 100 } }),
+    '1000000'
+  );
 });
 
 test('catalog keeps an empty result distinct from an API failure', () => {

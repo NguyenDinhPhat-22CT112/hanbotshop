@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ApiError, getCart, removeCartItem, updateCartItem } from '../lib/browser-api';
 import { getGuestCart, isGuestCartStorageEvent, removeGuestCartItem, updateGuestCartItem } from '../lib/guest-cart';
+import { calculateDepositRequired, depositUnitPrice } from '../lib/checkout-utils';
 
 type CartState = Awaited<ReturnType<typeof getCart>>;
 
@@ -148,7 +149,25 @@ export function CartClient() {
               <div className="cart-item-info">
                 <h3 className="cart-item-name">{item.product.name}</h3>
                 {item.variant?.name ? <p className="cart-item-variant">{item.variant.name}</p> : null}
-                <p className="cart-item-price">{formatVnd(item.unitPrice)}</p>
+                <div className="cart-item-price-row">
+                  <p className="cart-item-price">
+                    {item.paymentRequirement === 'DEPOSIT' ? (
+                      <>
+                        {formatVnd(depositUnitPrice(item))}
+                        {Number(item.unitPrice) !== Number(depositUnitPrice(item)) ? (
+                          <s className="cart-item-full-price">{formatVnd(item.unitPrice)}</s>
+                        ) : null}
+                      </>
+                    ) : (
+                      formatVnd(item.unitPrice)
+                    )}
+                  </p>
+                  {item.paymentRequirement === 'DEPOSIT' ? (
+                    <span className="cart-item-badge cart-item-badge--deposit">Cọc {item.product.depositPercent}%</span>
+                  ) : (
+                    <span className="cart-item-badge cart-item-badge--full">Thanh toán đủ</span>
+                  )}
+                </div>
 
                 <div className="cart-item-actions">
                   <div className="cart-quantity-control" aria-label={`Số lượng ${item.product.name}`}>
@@ -178,7 +197,11 @@ export function CartClient() {
               </div>
 
               <div className="cart-item-total">
-                <strong>{formatVnd(item.totalPrice)}</strong>
+                <strong>
+                  {item.paymentRequirement === 'DEPOSIT'
+                    ? formatVnd(String(Number(depositUnitPrice(item)) * item.quantity))
+                    : formatVnd(item.totalPrice)}
+                </strong>
               </div>
             </article>
           ))}
@@ -193,6 +216,13 @@ export function CartClient() {
             <span>Tạm tính</span>
             <strong>{formatVnd(cart.subtotal)}</strong>
           </div>
+
+          {cart.items.some((item) => item.paymentRequirement === 'DEPOSIT') ? (
+            <div className="cart-summary-row">
+              <span>Cọc cần thanh toán trước</span>
+              <strong>{formatVnd(String(calculateDepositRequired(cart.items)))}</strong>
+            </div>
+          ) : null}
 
           <div className="cart-summary-note">
             <p>Phí vận chuyển sẽ được tính ở trang thanh toán.</p>

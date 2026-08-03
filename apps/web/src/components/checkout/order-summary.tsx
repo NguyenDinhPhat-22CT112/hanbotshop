@@ -1,6 +1,6 @@
 'use client';
 
-import { formatVnd } from '../../lib/checkout-utils';
+import { depositUnitPrice, formatVnd } from '../../lib/checkout-utils';
 import type { CartItem as ApiCartItem } from '../../lib/browser-api';
 
 type OrderSummaryProps = {
@@ -55,7 +55,18 @@ export function OrderSummary({ items, subtotal, depositRequired, isLoading }: Or
                         <div className="checkout-item-content">
                             <div className="checkout-item-header">
                                 <strong className="checkout-item-name">{item.product.name}</strong>
-                                <strong className="checkout-item-price">{formatVnd(item.totalPrice)}</strong>
+                                <strong className="checkout-item-price">
+                                    {item.paymentRequirement === 'DEPOSIT' ? (
+                                        <>
+                                            {formatVnd(String(Number(depositUnitPrice(item)) * item.quantity))}
+                                            {Number(item.unitPrice) !== Number(depositUnitPrice(item)) ? (
+                                                <s className="checkout-item-full-price">{formatVnd(item.totalPrice)}</s>
+                                            ) : null}
+                                        </>
+                                    ) : (
+                                        formatVnd(item.totalPrice)
+                                    )}
+                                </strong>
                             </div>
 
                             <div className="checkout-item-meta">

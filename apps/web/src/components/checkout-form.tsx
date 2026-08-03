@@ -5,8 +5,6 @@ import { useEffect, useState } from 'react';
 import { checkout, createPaymentSession, getAddresses, getCart, type Address } from '../lib/browser-api';
 import { calculateDepositRequired } from '../lib/checkout-utils';
 import { PaymentModal } from './bank-transfer-payment';
-import { CheckoutProgress } from './checkout/checkout-progress';
-import { TrustIndicators } from './checkout/trust-indicators';
 import { ShippingForm } from './checkout/shipping-form';
 import { OrderSummary } from './checkout/order-summary';
 
@@ -137,9 +135,6 @@ export function CheckoutForm() {
   return (
     <>
       <div className="checkout-container">
-        <CheckoutProgress currentStep="shipping" />
-        <TrustIndicators />
-
         <div className="checkout-layout">
           <ShippingForm
             fields={fields}

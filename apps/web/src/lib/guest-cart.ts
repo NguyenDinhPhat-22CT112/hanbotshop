@@ -2,7 +2,7 @@
 
 import { mergeCartItems, type CartResponse } from './browser-api';
 
-const STORAGE_KEY = 'hanbotorder_guest_cart_v1';
+const STORAGE_KEY = 'hanbotorder_guest_cart_v2';
 const CART_LIFETIME_MS = 24 * 60 * 60 * 1000;
 const MAX_GUEST_CART_ITEMS = 30;
 
@@ -29,6 +29,11 @@ export type GuestCartItemInput = {
 };
 
 export function getGuestCart(): CartResponse {
+  // Clean up old storage version
+  if (canUseStorage() && window.localStorage.getItem('hanbotorder_guest_cart_v1')) {
+    window.localStorage.removeItem('hanbotorder_guest_cart_v1');
+  }
+
   const storedCart = readStoredCart();
 
   return toCartResponse(storedCart?.items ?? []);

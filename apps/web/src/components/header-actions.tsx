@@ -18,6 +18,7 @@ import {
   isGuestCartStorageEvent,
   mergeGuestCartAfterAuthentication
 } from '../lib/guest-cart';
+import { depositUnitPrice } from '../lib/checkout-utils';
 
 type CartState = Awaited<ReturnType<typeof getCart>>;
 type OpenPanel = 'account' | 'cart' | null;
@@ -238,7 +239,8 @@ export function HeaderActions() {
                 <article key={item.id}>
                   <strong>{item.product.name}</strong>
                   <span>
-                    {item.quantity} x {formatPrice(item.unitPrice)}
+                    {item.quantity} x {formatPrice(depositUnitPrice(item))}
+                    {item.paymentRequirement === 'DEPOSIT' ? <em className="mini-cart-deposit-label">Cọc {item.product.depositPercent}%</em> : null}
                   </span>
                 </article>
               ))}
