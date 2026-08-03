@@ -97,8 +97,12 @@ export const createProductSchema = z.object({
   if (value.preorderOpenAt && value.preorderCloseAt && value.preorderOpenAt >= value.preorderCloseAt) {
     context.addIssue({ code: z.ZodIssueCode.custom, path: ['preorderCloseAt'], message: 'Pre-order close time must be after open time.' });
   }
-  if (value.paymentRequirement === PaymentRequirement.DEPOSIT && value.availability !== ProductAvailability.PRE_ORDER) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['paymentRequirement'], message: 'Deposit payment is only supported for pre-order products.' });
+  if (
+    value.paymentRequirement === PaymentRequirement.DEPOSIT &&
+    value.availability !== ProductAvailability.PRE_ORDER &&
+    value.availability !== ProductAvailability.IN_STOCK
+  ) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['paymentRequirement'], message: 'Deposit payment is only supported for pre-order or in-stock products.' });
   }
 });
 

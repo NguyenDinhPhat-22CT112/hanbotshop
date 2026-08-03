@@ -8,6 +8,8 @@ import { TagPicker } from './tag-picker';
 
 const DRAFT_KEY = 'admin:product-form-draft';
 
+const RESIN_DEPOSIT_PERCENT = 20;
+
 type ProductDraft = {
   productName: string;
   slug: string;
@@ -34,6 +36,8 @@ export function ProductForm() {
   const [availability, setAvailability] = useState('ORDER');
   const [status, setStatus] = useState('ACTIVE');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [resinDeposit, setResinDeposit] = useState('');
+  const [depositWasEdited, setDepositWasEdited] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
 
   const formRef = useRef<HTMLFormElement>(null);
@@ -56,6 +60,7 @@ export function ProductForm() {
           setStatus(draft.status || 'ACTIVE');
           setSelectedTags(draft.selectedTags || []);
           setImages(draft.images || []);
+          setResinDeposit(draft.compareAtPrice || '');
 
           // Restore form field values after a short delay to ensure form is rendered
           setTimeout(() => {
@@ -137,6 +142,8 @@ export function ProductForm() {
 
     const systemTag = productType.toLowerCase();
     const tags = [...selectedTags, systemTag];
+    const resinDepositValue = String(resinDeposit ?? '').trim();
+    const resinHasDeposit = productType === 'RESIN' && Boolean(resinDepositValue && Number(resinDepositValue) > 0);
 
     try {
       await adminFetch('/products', {
@@ -149,7 +156,11 @@ export function ProductForm() {
           availability: productType === 'ORDER' ? 'ORDER' : availability,
           status,
           basePrice: String(formData.get('basePrice') ?? ''),
-          compareAtPrice: productType === 'ORDER' ? String(formData.get('compareAtPrice') ?? '') || null : null,
+          compareAtPrice: productType === 'ORDER'
+            ? String(formData.get('compareAtPrice') ?? '') || null
+            : resinDepositValue || null,
+          paymentRequirement: resinHasDeposit ? 'DEPOSIT' : undefined,
+          depositPercent: resinHasDeposit ? RESIN_DEPOSIT_PERCENT : undefined,
           tags,
           images: images.map((image, index) => ({
             url: image.url,
@@ -201,7 +212,15 @@ export function ProductForm() {
             role="radio"
             aria-checked={productType === 'RESIN'}
             className={productType === 'RESIN' ? 'is-selected' : ''}
-            onClick={() => { setProductType('RESIN'); setAvailability('PRE_ORDER'); }}
+            onClick={() => {
+              setProductType('RESIN');
+              setAvailability('PRE_ORDER');
+              if (!depositWasEdited) {
+                const basePriceInput = formRef.current?.elements.namedItem('basePrice') as HTMLInputElement | null;
+                const base = basePriceInput ? Number(basePriceInput.value.replace(/[^\d]/g, '')) : 0;
+                setResinDeposit(base > 0 ? String(Math.round(base * RESIN_DEPOSIT_PERCENT / 100)) : '');
+              }
+            }}
           >
             <b>Resin</b>
             <small>Mô hình resin sưu tầm</small>
@@ -313,6 +332,12 @@ export function ProductForm() {
                 inputMode="numeric"
                 placeholder="2450000"
                 required
+                onChange={(event) => {
+                  if (productType === 'RESIN' && !depositWasEdited) {
+                    const base = Number(event.target.value.replace(/[^\d]/g, ''));
+                    setResinDeposit(base > 0 ? String(Math.round(base * RESIN_DEPOSIT_PERCENT / 100)) : '');
+                  }
+                }}
               />
             </label>
             {productType === 'ORDER' && (
@@ -324,6 +349,23 @@ export function ProductForm() {
                   inputMode="numeric"
                   placeholder="500000"
                 />
+              </label>
+            )}
+            {productType === 'RESIN' && (
+              <label>
+                Giá cọc
+                <input
+                  name="compareAtPrice"
+                  type="text"
+                  inputMode="numeric"
+                  value={resinDeposit}
+                  onChange={(event) => {
+                    setDepositWasEdited(true);
+                    setResinDeposit(event.target.value);
+                  }}
+                  placeholder="Tự tính 20% giá gốc"
+                />
+                <small>Mặc định tự tính 20% giá gốc, bạn có thể chỉnh sửa.</small>
               </label>
             )}
           </div>

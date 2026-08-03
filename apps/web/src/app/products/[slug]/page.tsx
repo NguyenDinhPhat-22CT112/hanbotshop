@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { ProductGallery } from '../../../components/product-gallery';
 import { ProductDetailClient } from '../../../components/product-detail-client';
-import { ResinPrintTemplate } from '../../../components/resin-print-template';
 import { getProduct, getProducts } from '../../../lib/api';
 import { labelOf } from '../../../lib/labels';
 import type { ProductCardModel } from '../../../lib/models';
@@ -40,7 +39,6 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     ?? (product.paymentRequirement === 'DEPOSIT' ? estimateDeposit(product.price, product.depositPercent) : null);
   const tagLinks = product.tagLinks ?? (product.tags ?? []).map((tag) => ({ name: tag, slug: slugifyTag(tag) }));
   const relatedProducts = getRelatedProducts(product, products.data);
-  const isResinTemplate = isResinProduct(product);
   const numericPrice = Number(product.price.replace(/[^\d]/g, ''));
   const productStructuredData = {
     '@context': 'https://schema.org',
@@ -77,25 +75,13 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         <span>{product.name}</span>
       </nav>
 
-      {isResinTemplate ? (
-        <ResinPrintTemplate
-          productId={product.id}
+      <section className="product-template">
+        <ProductGallery
           productName={product.name}
-          price={displayPrice}
-          imageUrl={product.imageUrl}
-          imageTone={product.imageTone}
           category={product.category}
-          paymentRequirement={product.paymentRequirement}
-          depositPercent={product.depositPercent}
+          imageTone={product.imageTone}
+          images={product.images ?? []}
         />
-      ) : (
-        <section className="product-template">
-          <ProductGallery
-            productName={product.name}
-            category={product.category}
-            imageTone={product.imageTone}
-            images={product.images ?? []}
-          />
 
           <div className="product-purchase-panel">
             <p className="studio">{product.studio}</p>
@@ -183,9 +169,8 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
                 ))}
               </nav>
             ) : null}
-          </div>
-        </section>
-      )}
+        </div>
+      </section>
 
       <section className="related-products-section">
         <div className="related-heading">

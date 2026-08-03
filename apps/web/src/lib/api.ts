@@ -201,13 +201,6 @@ function mapProduct(product: ApiProduct): ProductCardModel {
 }
 
 function getDisplayPricing(product: ApiProduct) {
-  if (product.availability !== 'ORDER') {
-    return {
-      fullPrice: product.basePrice,
-      depositPrice: null
-    };
-  }
-
   const prices = [product.basePrice, product.compareAtPrice]
     .filter((price): price is string => Boolean(price))
     .sort((left, right) => Number(right) - Number(left));
