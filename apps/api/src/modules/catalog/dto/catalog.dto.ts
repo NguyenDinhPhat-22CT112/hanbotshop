@@ -12,7 +12,26 @@ const optionalPrice = z
   .union([z.string().min(1), z.number()])
   .optional()
   .nullable()
-  .transform((value) => (value === undefined || value === null || value === '' ? null : value));
+  .transform((value) => {
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
+
+    if (typeof value === 'number') {
+      return value;
+    }
+
+    const trimmed = value.trim();
+
+    // Accept plain integer/decimal values as-is ("2450000", "2450000.5").
+    if (/^\d+(?:\.\d{1,2})?$/.test(trimmed)) {
+      return trimmed;
+    }
+
+    // Strip thousands separators commonly used in VND formatting
+    // ("2.450.000", "2,450,000", "2 450 000").
+    return trimmed.replace(/[^\d]/g, '') || null;
+  });
 
 export const createCategorySchema = z.object({
   name: z.string().min(1).max(160),
