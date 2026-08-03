@@ -238,13 +238,14 @@ export class CartService {
         ...item,
         unitPrice: unitPrice.toString(),
         totalPrice: unitPrice.mul(item.quantity).toString(),
+        paymentRequirement: item.paymentRequirement,
         product: {
           ...item.product,
           basePrice: item.product.basePrice?.toString() ?? null,
           compareAtPrice: item.product.compareAtPrice?.toString() ?? null,
           imageUrl: firstImage?.url ?? null,
-          // Use paymentRequirement from CartItem, not from Product
-          paymentRequirement: item.paymentRequirement,
+          paymentRequirement: item.product.paymentRequirement,
+          depositPercent: item.product.depositPercent,
           orderType:
             item.product.category?.placement === 'RESIN'
               || item.product.tags?.some((entry) => entry.tag.slug.toLowerCase() === 'resin')
