@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ApiError, getCart, removeCartItem, updateCartItem } from '../lib/browser-api';
 import { getGuestCart, isGuestCartStorageEvent, removeGuestCartItem, updateGuestCartItem } from '../lib/guest-cart';
-import { calculateDepositRequired, depositUnitPrice } from '../lib/checkout-utils';
+import { calculateDepositRequired, depositPercentOf, depositUnitPrice } from '../lib/checkout-utils';
 
 type CartState = Awaited<ReturnType<typeof getCart>>;
 
@@ -163,7 +163,7 @@ export function CartClient() {
                     )}
                   </p>
                   {item.paymentRequirement === 'DEPOSIT' ? (
-                    <span className="cart-item-badge cart-item-badge--deposit">Cọc {item.product.depositPercent}%</span>
+                    <span className="cart-item-badge cart-item-badge--deposit">Cọc {depositPercentOf(item)}%</span>
                   ) : (
                     <span className="cart-item-badge cart-item-badge--full">Thanh toán đủ</span>
                   )}

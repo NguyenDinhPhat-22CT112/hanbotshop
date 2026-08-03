@@ -1,6 +1,6 @@
 'use client';
 
-import { depositUnitPrice, formatVnd } from '../../lib/checkout-utils';
+import { depositPercentOf, depositUnitPrice, formatVnd } from '../../lib/checkout-utils';
 import type { CartItem as ApiCartItem } from '../../lib/browser-api';
 
 type OrderSummaryProps = {
@@ -85,7 +85,7 @@ export function OrderSummary({ items, subtotal, depositRequired, isLoading }: Or
 
                             {item.paymentRequirement === 'DEPOSIT' ? (
                                 <span className="checkout-item-badge checkout-item-badge--deposit">
-                                    Cọc {item.product.depositPercent}%
+                                    Cọc {depositPercentOf(item)}%
                                 </span>
                             ) : (
                                 <span className="checkout-item-badge checkout-item-badge--full">

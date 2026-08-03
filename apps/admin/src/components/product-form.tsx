@@ -144,6 +144,8 @@ export function ProductForm() {
     const tags = [...selectedTags, systemTag];
     const resinDepositValue = String(resinDeposit ?? '').trim();
     const resinHasDeposit = productType === 'RESIN' && Boolean(resinDepositValue && Number(resinDepositValue) > 0);
+    const orderDepositValue = productType === 'ORDER' ? String(formData.get('compareAtPrice') ?? '').trim() : '';
+    const orderHasDeposit = Boolean(orderDepositValue && Number(orderDepositValue.replace(/[^\d]/g, '')) > 0);
 
     try {
       await adminFetch('/products', {
@@ -157,10 +159,10 @@ export function ProductForm() {
           status,
           basePrice: String(formData.get('basePrice') ?? ''),
           compareAtPrice: productType === 'ORDER'
-            ? String(formData.get('compareAtPrice') ?? '') || null
+            ? orderDepositValue || null
             : resinDepositValue || null,
-          paymentRequirement: resinHasDeposit ? 'DEPOSIT' : undefined,
-          depositPercent: resinHasDeposit ? RESIN_DEPOSIT_PERCENT : undefined,
+          paymentRequirement: (resinHasDeposit || orderHasDeposit) ? 'DEPOSIT' : undefined,
+          depositPercent: resinHasDeposit ? RESIN_DEPOSIT_PERCENT : (orderHasDeposit ? 30 : undefined),
           tags,
           images: images.map((image, index) => ({
             url: image.url,

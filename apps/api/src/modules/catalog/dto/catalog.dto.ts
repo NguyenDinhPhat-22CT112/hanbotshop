@@ -100,9 +100,10 @@ export const createProductSchema = z.object({
   if (
     value.paymentRequirement === PaymentRequirement.DEPOSIT &&
     value.availability !== ProductAvailability.PRE_ORDER &&
-    value.availability !== ProductAvailability.IN_STOCK
+    value.availability !== ProductAvailability.IN_STOCK &&
+    value.availability !== ProductAvailability.ORDER
   ) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['paymentRequirement'], message: 'Deposit payment is only supported for pre-order or in-stock products.' });
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['paymentRequirement'], message: 'Deposit payment is only supported for pre-order, in-stock, or order products.' });
   }
 });
 

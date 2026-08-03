@@ -108,8 +108,8 @@ export function AdminProductEditor({ id }: { id: string }) {
           name: variant.name.trim(),
           price: variant.price ? String(variant.price) : null,
           isActive: variant.isActive
-          ,trackInventory: variant.trackInventory
-          ,inventoryQuantity: Number(variant.inventoryQuantity) || 0
+          , trackInventory: variant.trackInventory
+          , inventoryQuantity: Number(variant.inventoryQuantity) || 0
         }))
         .filter((variant) => variant.name);
 
@@ -122,6 +122,9 @@ export function AdminProductEditor({ id }: { id: string }) {
         .filter((image) => image.url);
       const availability = String(formData.get('availability') ?? 'PRE_ORDER');
       const systemTag = availability === 'ORDER' ? 'order' : 'resin';
+      const compareAtPrice = String(formData.get('compareAtPrice') ?? '').trim();
+      const hasDeposit = Boolean(compareAtPrice && Number(compareAtPrice.replace(/[^\d]/g, '')) > 0);
+      const depositPercent = Number(formData.get('depositPercent') ?? 20);
 
       await adminFetch(`/products/${id}`, {
         method: 'PATCH',
@@ -134,12 +137,12 @@ export function AdminProductEditor({ id }: { id: string }) {
           status: String(formData.get('status') ?? 'DRAFT'),
           availability,
           basePrice: String(formData.get('basePrice') ?? '') || null,
-          compareAtPrice: String(formData.get('compareAtPrice') ?? '') || null,
+          compareAtPrice: compareAtPrice || null,
           preorderOpenAt: toIsoDate(formData.get('preorderOpenAt')),
           preorderCloseAt: toIsoDate(formData.get('preorderCloseAt')),
           estimatedReadyAt: toIsoDate(formData.get('estimatedReadyAt')),
-          paymentRequirement: String(formData.get('paymentRequirement') ?? 'FULL'),
-          depositPercent: Number(formData.get('depositPercent') ?? 100),
+          paymentRequirement: hasDeposit ? 'DEPOSIT' : 'FULL',
+          depositPercent: hasDeposit ? depositPercent : undefined,
           trackInventory: formData.get('trackInventory') === 'on',
           inventoryQuantity: Number(formData.get('inventoryQuantity') ?? 0),
           tags: [...selectedTags, systemTag],
@@ -224,7 +227,7 @@ export function AdminProductEditor({ id }: { id: string }) {
             <input name="basePrice" defaultValue={product.basePrice ?? ''} />
           </label>
           <label>
-            Gia so sanh
+            Giá cọc
             <input name="compareAtPrice" defaultValue={product.compareAtPrice ?? ''} />
           </label>
           <label>

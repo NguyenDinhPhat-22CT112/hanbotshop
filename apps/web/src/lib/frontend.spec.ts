@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calculateDepositRequired, depositUnitPrice, formatVnd } from './checkout-utils';
+import { calculateDepositRequired, depositPercentOf, depositUnitPrice, formatVnd } from './checkout-utils';
 import { safeInternalPath } from './navigation';
 import { getCatalogViewState } from './catalog-state';
 
@@ -36,6 +36,13 @@ test('depositUnitPrice returns deposit price for deposit lines and full price ot
     depositUnitPrice({ unitPrice: '1000000', paymentRequirement: 'DEPOSIT', product: { depositPercent: 100 } }),
     '1000000'
   );
+});
+
+test('deposit helpers stay finite when depositPercent is missing', () => {
+  assert.equal(depositPercentOf({ product: { depositPercent: 20 } }), 20);
+  assert.equal(depositPercentOf({ product: {} }), 100);
+  assert.equal(depositUnitPrice({ unitPrice: '1000000', paymentRequirement: 'DEPOSIT', product: {} }), '1000000');
+  assert.equal(calculateDepositRequired([{ totalPrice: '200000', paymentRequirement: 'DEPOSIT', product: {} }]), 200000);
 });
 
 test('catalog keeps an empty result distinct from an API failure', () => {

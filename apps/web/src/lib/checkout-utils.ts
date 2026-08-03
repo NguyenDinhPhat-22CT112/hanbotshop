@@ -1,13 +1,19 @@
 export type CheckoutLine = {
   totalPrice: string;
   paymentRequirement: 'FULL' | 'DEPOSIT';
-  product: { depositPercent: number };
+  product: { depositPercent?: number };
 };
+
+export function depositPercentOf(item: { product?: { depositPercent?: number } | null }) {
+  const percent = Number(item.product?.depositPercent);
+
+  return Number.isFinite(percent) && percent > 0 ? percent : 100;
+}
 
 export function calculateDepositRequired(items: CheckoutLine[]) {
   return items.reduce((total, item) => {
     const lineTotal = Number(item.totalPrice);
-    const percent = item.paymentRequirement === 'DEPOSIT' ? item.product.depositPercent : 100;
+    const percent = item.paymentRequirement === 'DEPOSIT' ? depositPercentOf(item) : 100;
     return total + lineTotal * percent / 100;
   }, 0);
 }
@@ -15,7 +21,7 @@ export function calculateDepositRequired(items: CheckoutLine[]) {
 export type DepositPricingLine = {
   unitPrice: string;
   paymentRequirement: 'FULL' | 'DEPOSIT';
-  product: { depositPercent: number };
+  product: { depositPercent?: number };
 };
 
 export function depositUnitPrice(line: DepositPricingLine) {
@@ -25,7 +31,7 @@ export function depositUnitPrice(line: DepositPricingLine) {
 
   const fullPrice = Number(line.unitPrice);
 
-  return String(Math.round(fullPrice * line.product.depositPercent / 100));
+  return String(Math.round(fullPrice * depositPercentOf(line) / 100));
 }
 
 export function formatVnd(value: string | number) {
