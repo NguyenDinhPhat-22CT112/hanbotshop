@@ -476,18 +476,62 @@ function orderPurchaseTimeline(order: ApiOrder, trackingCopy: string): AccountOr
 }
 
 function mapTimeline(timeline: ApiTimelineItem[], order: ApiOrder, trackingCopy: string): AccountOrder['timeline'] {
-  const mapped = timeline.map((item) => {
-    const payload = item.payload && typeof item.payload === 'object' ? (item.payload as Record<string, unknown>) : {};
-    const after = typeof payload.after === 'string' ? payload.after : undefined;
-    const type = after ?? item.type;
+  // Lọc và gộp các events quan trọng, tránh trùng lặp
+  const importantEvents: Array<{ type: string; time: string; status?: string }> = [];
+  const seenStatuses = new Set<string>();
 
-    return {
-      title: timelineTitle(type),
-      note: timelineNote(type, trackingCopy),
-      time: formatDateTime(item.createdAt),
-      done: true
-    };
-  });
+  for (const item of timeline) {
+    const payload = item.payload && typeof item.payload === 'object' ? (item.payload as Record<string, unknown>) : {};
+
+    // Với STATUS_CHANGED, lấy status mới
+    if (item.type === 'STATUS_CHANGED' && typeof payload.after === 'string') {
+      const newStatus = payload.after;
+      if (!seenStatuses.has(newStatus)) {
+        seenStatuses.add(newStatus);
+        importantEvents.push({
+          type: 'STATUS_CHANGED',
+          status: newStatus,
+          time: formatDateTime(item.createdAt)
+        });
+      }
+      continue;
+    }
+
+    // Với PAYMENT_STATUS_CHANGED, chỉ hiển thị khi chuyển sang PAID
+    if (item.type === 'PAYMENT_STATUS_CHANGED' && typeof payload.after === 'string') {
+      if (payload.after === 'PAID' && !seenStatuses.has('PAYMENT_CONFIRMED')) {
+        seenStatuses.add('PAYMENT_CONFIRMED');
+        importantEvents.push({
+          type: 'PAYMENT_CONFIRMED',
+          time: formatDateTime(item.createdAt)
+        });
+      }
+      continue;
+    }
+
+    // Chỉ hiển thị ORDER_CREATED một lần
+    if (item.type === 'ORDER_CREATED' && !seenStatuses.has('ORDER_CREATED')) {
+      seenStatuses.add('ORDER_CREATED');
+      importantEvents.push({
+        type: 'ORDER_CREATED',
+        time: formatDateTime(item.createdAt)
+      });
+      continue;
+    }
+
+    // Bỏ qua các payment events khác (CHECKOUT_CREATED không cần hiển thị)
+    if (item.type === 'CHECKOUT_CREATED' || item.type === 'WEBHOOK_RECEIVED') {
+      continue;
+    }
+  }
+
+  // Map sang timeline items
+  const mapped = importantEvents.map((event) => ({
+    title: timelineTitle(event.status ?? event.type),
+    note: timelineNote(event.status ?? event.type, trackingCopy),
+    time: event.time,
+    done: true
+  }));
 
   return mapped.length ? mapped : fallbackTimeline(order, trackingCopy);
 }
@@ -495,6 +539,7 @@ function mapTimeline(timeline: ApiTimelineItem[], order: ApiOrder, trackingCopy:
 function timelineTitle(type: string) {
   const titles: Record<string, string> = {
     ORDER_CREATED: 'Đã tạo đơn',
+    PAYMENT_CONFIRMED: 'Đã xác nhận thanh toán',
     STATUS_CHANGED: 'Cập nhật trạng thái',
     PAYMENT_STATUS_CHANGED: 'Cập nhật thanh toán',
     TRACKING_UPDATED: 'Cập nhật giao hàng',
@@ -502,36 +547,52 @@ function timelineTitle(type: string) {
     ADMIN_NOTE_ADDED: 'Shop thêm ghi chú',
     PAYMENT_NOTE_ADDED: 'Ghi nhận thanh toán',
     WAITING_DEPOSIT: 'Chờ thanh toán tiền cọc',
-    DEPOSIT_PAID: 'Đã thanh toán tiền cọc',
+    DEPOSIT_PAID: 'Đã nhận tiền cọc',
     WAITING_SECOND_PAYMENT: 'Chờ thanh toán đợt 2',
-    SECOND_PAYMENT_PAID: 'Đã thanh toán đợt 2',
+    SECOND_PAYMENT_PAID: 'Đã nhận thanh toán đợt 2',
     SHIPPING: 'Đang vận chuyển',
-    PAID: 'Đã thanh toán',
-    PARTIALLY_PAID: 'Thanh toán một phần',
+    PAID: 'Đã thanh toán đủ',
+    PARTIALLY_PAID: 'Đã thanh toán một phần',
+    PENDING_CONFIRMATION: 'Chờ shop xác nhận',
+    CONFIRMED: 'Shop đã xác nhận đơn',
+    WAITING_PAYMENT: 'Chờ thanh toán',
     IN_PRODUCTION: 'Đang sản xuất',
-    READY_TO_SHIP: 'Sẵn sàng giao',
-    SHIPPED: 'Đang giao hàng',
-    COMPLETED: 'Hoàn tất',
-    CANCELLED: 'Đã hủy đơn'
+    READY_TO_SHIP: 'Sẵn sàng giao hàng',
+    SHIPPED: 'Đã giao cho đơn vị vận chuyển',
+    COMPLETED: 'Đơn hàng hoàn tất',
+    CANCELLED: 'Đã hủy đơn',
+    BLOCKED: 'Đơn hàng tạm giữ'
   };
 
   return titles[type] ?? type;
 }
 
 function timelineNote(type: string, trackingCopy: string) {
-  if (type === 'TRACKING_UPDATED' || type === 'SHIPPED' || type === 'SHIPPING') {
-    return trackingCopy;
+  const notes: Record<string, string> = {
+    ORDER_CREATED: 'Shop đã nhận thông tin đặt hàng của bạn.',
+    PAYMENT_CONFIRMED: 'Shop đã xác nhận khoản thanh toán của bạn.',
+    PENDING_CONFIRMATION: 'Đơn hàng đang chờ shop xác nhận.',
+    CONFIRMED: 'Shop đã xác nhận đơn hàng và sẽ liên hệ hướng dẫn thanh toán.',
+    WAITING_DEPOSIT: 'Vui lòng thanh toán tiền cọc để shop bắt đầu xử lý đơn.',
+    DEPOSIT_PAID: 'Shop đã nhận tiền cọc. Đơn hàng sẽ được xử lý khi hàng về.',
+    WAITING_PAYMENT: 'Vui lòng thanh toán để shop bắt đầu xử lý đơn.',
+    PAID: 'Thanh toán đã hoàn tất. Shop sẽ bắt đầu xử lý đơn hàng.',
+    WAITING_SECOND_PAYMENT: 'Hàng đã về. Vui lòng thanh toán đợt 2 để shop chuẩn bị giao hàng.',
+    SECOND_PAYMENT_PAID: 'Đã nhận thanh toán đợt 2. Shop sẽ chuẩn bị giao hàng.',
+    IN_PRODUCTION: 'Đơn hàng đang được sản xuất/chuẩn bị.',
+    READY_TO_SHIP: 'Đơn hàng đã sẵn sàng và chuẩn bị giao.',
+    SHIPPED: trackingCopy || 'Đơn hàng đã được giao cho đơn vị vận chuyển.',
+    SHIPPING: trackingCopy || 'Đơn hàng đang trên đường giao đến bạn.',
+    COMPLETED: 'Đơn hàng đã hoàn tất. Cảm ơn bạn đã mua hàng!',
+    CANCELLED: 'Đơn hàng đã được hủy.',
+    BLOCKED: 'Đơn hàng tạm thời bị giữ. Shop sẽ liên hệ với bạn.'
+  };
+
+  if (type === 'TRACKING_UPDATED') {
+    return trackingCopy || 'Thông tin vận chuyển đã được cập nhật.';
   }
 
-  if (type === 'ORDER_CREATED') {
-    return 'Shop đã nhận thông tin đặt hàng.';
-  }
-
-  if (type === 'ORDER_CANCELLED' || type === 'CANCELLED') {
-    return 'Đơn hàng đã được hủy theo quy định.';
-  }
-
-  return 'Tiến độ đơn hàng đã được cập nhật.';
+  return notes[type] ?? 'Đơn hàng đã được cập nhật.';
 }
 
 function createIdempotencyKey() {

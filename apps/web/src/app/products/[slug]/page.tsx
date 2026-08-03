@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { ProductPurchaseActions } from '../../../components/product-purchase-actions';
 import { ProductGallery } from '../../../components/product-gallery';
-import { ProductPaymentSelector } from '../../../components/product-payment-selector';
+import { ProductDetailClient } from '../../../components/product-detail-client';
 import { ResinPrintTemplate } from '../../../components/resin-print-template';
 import { getProduct, getProducts } from '../../../lib/api';
 import { labelOf } from '../../../lib/labels';
@@ -53,14 +52,14 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
     category: product.category,
     offers: numericPrice
       ? {
-          '@type': 'Offer',
-          priceCurrency: 'VND',
-          price: numericPrice,
-          availability: product.trackInventory && product.inventoryQuantity <= 0
-            ? 'https://schema.org/OutOfStock'
-            : 'https://schema.org/InStock',
-          url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/products/${product.slug}`
-        }
+        '@type': 'Offer',
+        priceCurrency: 'VND',
+        price: numericPrice,
+        availability: product.trackInventory && product.inventoryQuantity <= 0
+          ? 'https://schema.org/OutOfStock'
+          : 'https://schema.org/InStock',
+        url: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/products/${product.slug}`
+      }
       : undefined
   };
 
@@ -91,100 +90,100 @@ export default async function ProductDetailPage({ params }: ProductDetailPagePro
         />
       ) : (
         <section className="product-template">
-        <ProductGallery
-          productName={product.name}
-          category={product.category}
-          imageTone={product.imageTone}
-          images={product.images ?? []}
-        />
-
-        <div className="product-purchase-panel">
-          <p className="studio">{product.studio}</p>
-          <h1>{product.name}</h1>
-
-          <ProductPaymentSelector fullPrice={displayPrice} depositPrice={depositPrice} />
-
-          <ProductPurchaseActions
-            productId={product.id}
+          <ProductGallery
             productName={product.name}
-            productImageUrl={product.imageUrl}
-            paymentRequirement={product.paymentRequirement}
-            depositPercent={product.depositPercent}
-            variants={product.variants ?? []}
-            basePrice={product.price.replace(' VND', '').replace(/\./g, '')}
-            purchaseAllowed={product.variants?.length ? product.variants.some((variant) => variant.isActive && (!variant.trackInventory || variant.inventoryQuantity > 0)) : (!product.trackInventory || product.inventoryQuantity > 0)}
+            category={product.category}
+            imageTone={product.imageTone}
+            images={product.images ?? []}
           />
 
-          <div className="hanbot-care">
-            <article>
-              <strong>Cam kết Hanbot</strong>
-              <span>Tư vấn trước khi chốt đơn, lưu lịch thanh toán và cập nhật tiến độ rõ ràng.</span>
-            </article>
-            <article>
-              <strong>Hỗ trợ nhanh</strong>
-              <span>Nhắn shop để kiểm tra tình trạng hàng, cọc và phương án giao hàng.</span>
-            </article>
-          </div>
+          <div className="product-purchase-panel">
+            <p className="studio">{product.studio}</p>
+            <h1>{product.name}</h1>
 
-          <section className="product-info-block">
-            <div className="product-info-heading">
-              <h2>Thông tin sản phẩm</h2>
-              <span>−</span>
+            <ProductDetailClient
+              productId={product.id}
+              productName={product.name}
+              productImageUrl={product.imageUrl}
+              paymentRequirement={product.paymentRequirement}
+              depositPercent={product.depositPercent}
+              variants={product.variants ?? []}
+              basePrice={product.price.replace(' VND', '').replace(/\./g, '')}
+              fullPrice={displayPrice}
+              depositPrice={depositPrice}
+              purchaseAllowed={product.variants?.length ? product.variants.some((variant) => variant.isActive && (!variant.trackInventory || variant.inventoryQuantity > 0)) : (!product.trackInventory || product.inventoryQuantity > 0)}
+            />
+
+            <div className="hanbot-care">
+              <article>
+                <strong>Cam kết Hanbot</strong>
+                <span>Tư vấn trước khi chốt đơn, lưu lịch thanh toán và cập nhật tiến độ rõ ràng.</span>
+              </article>
+              <article>
+                <strong>Hỗ trợ nhanh</strong>
+                <span>Nhắn shop để kiểm tra tình trạng hàng, cọc và phương án giao hàng.</span>
+              </article>
             </div>
-            <dl>
-              <div>
-                <dt>{labelOf(product.status)}</dt>
-                <dd>{product.description}</dd>
-              </div>
-              <div>
-                <dt>Thông tin sản phẩm</dt>
-                <dd>{product.name}</dd>
-              </div>
-              <div>
-                <dt>Hãng</dt>
-                <dd>{product.studio}</dd>
-              </div>
-              <div>
-                <dt>Danh mục</dt>
-                <dd>{product.category}</dd>
-              </div>
-              <div>
-                <dt>Giá</dt>
-                <dd>{displayPrice}</dd>
-              </div>
-              {depositPrice ? (
-                <div>
-                  <dt>Cọc dự kiến</dt>
-                  <dd>{depositPrice}</dd>
-                </div>
-              ) : null}
-              {product.trackInventory ? (
-                <div>
-                  <dt>Tồn kho</dt>
-                  <dd>{product.inventoryQuantity > 0 ? `Còn ${product.inventoryQuantity} sản phẩm` : 'Hết hàng'}</dd>
-                </div>
-              ) : null}
-              <div>
-                <dt>Ghi chú</dt>
-                <dd>Giá được chốt khi thanh toán. Phí giao hàng và lịch giao sẽ được shop xác nhận theo từng đơn.</dd>
-              </div>
-            </dl>
-          </section>
 
-          <section className="product-collapsible">
-            <h2>Dịch vụ giao hàng</h2>
-            <span>+</span>
-          </section>
+            <section className="product-info-block">
+              <div className="product-info-heading">
+                <h2>Thông tin sản phẩm</h2>
+                <span>−</span>
+              </div>
+              <dl>
+                <div>
+                  <dt>{labelOf(product.status)}</dt>
+                  <dd>{product.description}</dd>
+                </div>
+                <div>
+                  <dt>Thông tin sản phẩm</dt>
+                  <dd>{product.name}</dd>
+                </div>
+                <div>
+                  <dt>Hãng</dt>
+                  <dd>{product.studio}</dd>
+                </div>
+                <div>
+                  <dt>Danh mục</dt>
+                  <dd>{product.category}</dd>
+                </div>
+                <div>
+                  <dt>Giá</dt>
+                  <dd>{displayPrice}</dd>
+                </div>
+                {depositPrice ? (
+                  <div>
+                    <dt>Cọc dự kiến</dt>
+                    <dd>{depositPrice}</dd>
+                  </div>
+                ) : null}
+                {product.trackInventory ? (
+                  <div>
+                    <dt>Tồn kho</dt>
+                    <dd>{product.inventoryQuantity > 0 ? `Còn ${product.inventoryQuantity} sản phẩm` : 'Hết hàng'}</dd>
+                  </div>
+                ) : null}
+                <div>
+                  <dt>Ghi chú</dt>
+                  <dd>Giá được chốt khi thanh toán. Phí giao hàng và lịch giao sẽ được shop xác nhận theo từng đơn.</dd>
+                </div>
+              </dl>
+            </section>
 
-          {tagLinks.length ? (
-            <nav className="product-tags" aria-label="Tag sản phẩm">
-              <strong>Tags:</strong>
-              {tagLinks.map((tag) => (
-                <a href={`/san-pham?tags=${encodeURIComponent(tag.slug)}`} key={tag.slug}>{tag.name}</a>
-              ))}
-            </nav>
-          ) : null}
-        </div>
+            <section className="product-collapsible">
+              <h2>Dịch vụ giao hàng</h2>
+              <span>+</span>
+            </section>
+
+            {tagLinks.length ? (
+              <nav className="product-tags" aria-label="Tag sản phẩm">
+                <strong>Tags:</strong>
+                {tagLinks.map((tag) => (
+                  <a href={`/san-pham?tags=${encodeURIComponent(tag.slug)}`} key={tag.slug}>{tag.name}</a>
+                ))}
+              </nav>
+            ) : null}
+          </div>
         </section>
       )}
 

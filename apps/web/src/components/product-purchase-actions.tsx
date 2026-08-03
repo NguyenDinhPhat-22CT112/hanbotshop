@@ -14,6 +14,7 @@ type ProductPurchaseActionsProps = {
   variants: ProductVariant[];
   basePrice: string | null;
   purchaseAllowed?: boolean;
+  selectedPaymentMode?: 'full' | 'deposit';
 };
 
 export function ProductPurchaseActions({
@@ -24,7 +25,8 @@ export function ProductPurchaseActions({
   depositPercent,
   variants,
   basePrice,
-  purchaseAllowed = true
+  purchaseAllowed = true,
+  selectedPaymentMode = 'full'
 }: ProductPurchaseActionsProps) {
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [showVariantWarning, setShowVariantWarning] = useState(false);
@@ -33,6 +35,11 @@ export function ProductPurchaseActions({
   const hasVariants = activeVariants.length > 0;
   const disabled = !purchaseAllowed || (variants.length > 0 && activeVariants.length === 0);
   const selectedVariant = activeVariants.find((variant) => variant.id === selectedVariantId);
+
+  // Chuyển đổi selectedPaymentMode thành paymentRequirement thực tế
+  const effectivePaymentRequirement = selectedPaymentMode === 'deposit' && paymentRequirement === 'DEPOSIT'
+    ? 'DEPOSIT'
+    : 'FULL';
 
   function validateAddToCart() {
     if (hasVariants && !selectedVariantId) {
@@ -60,7 +67,7 @@ export function ProductPurchaseActions({
           productName={productName}
           productImageUrl={productImageUrl}
           unitPrice={selectedVariant?.price ?? basePrice ?? '0'}
-          paymentRequirement={paymentRequirement}
+          paymentRequirement={effectivePaymentRequirement}
           depositPercent={depositPercent}
           variantId={selectedVariantId}
           variantName={selectedVariant?.name}

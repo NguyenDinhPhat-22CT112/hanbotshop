@@ -17,8 +17,15 @@ async function bootstrap() {
     origin: [
       'http://hanbotorder.id.vn',
       'http://admin.hanbotorder.id.vn',
+      'http://localhost:3000',
+      'http://localhost:3002',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3002'
     ],
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range']
   });
   app.useGlobalPipes(
     new ValidationPipe({
@@ -32,46 +39,46 @@ async function bootstrap() {
   if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {
     // Swagger configuration
     const config = new DocumentBuilder()
-    .setTitle('Hanbotorder API')
-    .setDescription('API documentation for Hanbotorder e-commerce platform')
-    .setVersion('1.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'JWT',
-        description: 'Enter JWT token',
-        in: 'header',
-      },
-      'JWT-auth'
-    )
-    .addServer('http://localhost:3001', 'Local development')
-    .addTag('Auth', 'Authentication and authorization endpoints')
-    .addTag('Audit', 'Admin audit log endpoints')
-    .addTag('Catalog', 'Products, categories, and variants management')
-    .addTag('Cart', 'Shopping cart endpoints')
-    .addTag('Checkout', 'Checkout and order creation endpoints')
-    .addTag('Orders', 'Order management, tracking, and timeline endpoints')
-    .addTag('Payment', 'Payment gateway integration')
-    .addTag('Production', 'Production job management')
-    .addTag('Users', 'User management')
-    .addTag('Files', 'File upload and management')
-    .addTag('Health', 'Health check endpoints')
-    .build();
+      .setTitle('Hanbotorder API')
+      .setDescription('API documentation for Hanbotorder e-commerce platform')
+      .setVersion('1.0')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'JWT',
+          description: 'Enter JWT token',
+          in: 'header',
+        },
+        'JWT-auth'
+      )
+      .addServer('http://localhost:3001', 'Local development')
+      .addTag('Auth', 'Authentication and authorization endpoints')
+      .addTag('Audit', 'Admin audit log endpoints')
+      .addTag('Catalog', 'Products, categories, and variants management')
+      .addTag('Cart', 'Shopping cart endpoints')
+      .addTag('Checkout', 'Checkout and order creation endpoints')
+      .addTag('Orders', 'Order management, tracking, and timeline endpoints')
+      .addTag('Payment', 'Payment gateway integration')
+      .addTag('Production', 'Production job management')
+      .addTag('Users', 'User management')
+      .addTag('Files', 'File upload and management')
+      .addTag('Health', 'Health check endpoints')
+      .build();
 
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document, {
-    customSiteTitle: 'Hanbotorder API Documentation',
-    customfavIcon: 'https://nestjs.com/favicon.ico',
-    customCss: '.swagger-ui .topbar { display: none }',
-    swaggerOptions: {
-      persistAuthorization: true,
-      docExpansion: 'none',
-      filter: true,
-      showRequestDuration: true,
-    },
-  });
+      customSiteTitle: 'Hanbotorder API Documentation',
+      customfavIcon: 'https://nestjs.com/favicon.ico',
+      customCss: '.swagger-ui .topbar { display: none }',
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: 'none',
+        filter: true,
+        showRequestDuration: true,
+      },
+    });
 
     // Export OpenAPI JSON
     if (process.env.NODE_ENV === 'development') {

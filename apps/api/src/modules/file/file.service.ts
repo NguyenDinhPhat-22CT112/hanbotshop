@@ -13,7 +13,7 @@ type Actor = {
 
 @Injectable()
 export class FileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async createUploadIntent(actor: Actor, dto: CreateFileDto) {
     const storageProvider = process.env.CLOUD_STORAGE_PROVIDER || 's3-compatible';
@@ -109,18 +109,18 @@ export class FileService {
       this.prisma.productImage.count({
         where: file.url
           ? {
-              OR: [{ fileId: file.id }, { url: file.url }]
-            }
+            OR: [{ fileId: file.id }, { url: file.url }]
+          }
           : { fileId: file.id }
       }),
       file.url
         ? this.prisma.printRequest.count({
-            where: {
-              imageUrls: {
-                has: file.url
-              }
+          where: {
+            imageUrls: {
+              has: file.url
             }
-          })
+          }
+        })
         : Promise.resolve(0)
     ]);
 

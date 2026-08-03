@@ -5,10 +5,11 @@ import { useState } from 'react';
 type ProductPaymentSelectorProps = {
   fullPrice: string;
   depositPrice?: string | null;
+  selectedMode: 'full' | 'deposit';
+  onModeChange: (mode: 'full' | 'deposit') => void;
 };
 
-export function ProductPaymentSelector({ fullPrice, depositPrice }: ProductPaymentSelectorProps) {
-  const [selectedMode, setSelectedMode] = useState<'full' | 'deposit'>('full');
+export function ProductPaymentSelector({ fullPrice, depositPrice, selectedMode, onModeChange }: ProductPaymentSelectorProps) {
   const canSelectDeposit = Boolean(depositPrice && depositPrice !== fullPrice);
   const displayedPrice = selectedMode === 'deposit' && canSelectDeposit ? depositPrice : fullPrice;
 
@@ -22,7 +23,7 @@ export function ProductPaymentSelector({ fullPrice, depositPrice }: ProductPayme
           type="button"
           className={selectedMode === 'full' ? 'selected' : ''}
           aria-pressed={selectedMode === 'full'}
-          onClick={() => setSelectedMode('full')}
+          onClick={() => onModeChange('full')}
         >
           Full
         </button>
@@ -31,7 +32,7 @@ export function ProductPaymentSelector({ fullPrice, depositPrice }: ProductPayme
           className={selectedMode === 'deposit' ? 'selected' : ''}
           aria-pressed={selectedMode === 'deposit'}
           disabled={!canSelectDeposit}
-          onClick={() => setSelectedMode('deposit')}
+          onClick={() => onModeChange('deposit')}
         >
           Cọc
         </button>

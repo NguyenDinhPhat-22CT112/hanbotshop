@@ -1,10 +1,28 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { adminFetch } from '../lib/browser-api';
 import { createProductSlug } from '../lib/product-slug';
 import { ProductImageUploader, type UploadedProductImage } from './product-image-uploader';
 import { TagPicker } from './tag-picker';
+
+const DRAFT_KEY = 'admin:product-form-draft';
+
+type ProductDraft = {
+  productName: string;
+  slug: string;
+  slugWasEdited: boolean;
+  productType: 'ORDER' | 'RESIN';
+  availability: string;
+  status: string;
+  selectedTags: string[];
+  images: UploadedProductImage[];
+  studio?: string;
+  description?: string;
+  basePrice?: string;
+  compareAtPrice?: string;
+  savedAt: number;
+};
 
 export function ProductForm() {
   const [message, setMessage] = useState('');
@@ -16,6 +34,103 @@ export function ProductForm() {
   const [availability, setAvailability] = useState('ORDER');
   const [status, setStatus] = useState('ACTIVE');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [draftLoaded, setDraftLoaded] = useState(false);
+
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const draft: ProductDraft = JSON.parse(saved);
+        const age = Date.now() - draft.savedAt;
+
+        // Only restore if draft is less than 24 hours old
+        if (age < 24 * 60 * 60 * 1000) {
+          setProductName(draft.productName || '');
+          setSlug(draft.slug || '');
+          setSlugWasEdited(draft.slugWasEdited || false);
+          setProductType(draft.productType || 'ORDER');
+          setAvailability(draft.availability || 'ORDER');
+          setStatus(draft.status || 'ACTIVE');
+          setSelectedTags(draft.selectedTags || []);
+          setImages(draft.images || []);
+
+          // Restore form field values after a short delay to ensure form is rendered
+          setTimeout(() => {
+            if (formRef.current) {
+              const form = formRef.current;
+              if (draft.studio) {
+                const studioInput = form.elements.namedItem('studio') as HTMLInputElement;
+                if (studioInput) studioInput.value = draft.studio;
+              }
+              if (draft.description) {
+                const descInput = form.elements.namedItem('description') as HTMLTextAreaElement;
+                if (descInput) descInput.value = draft.description;
+              }
+              if (draft.basePrice) {
+                const priceInput = form.elements.namedItem('basePrice') as HTMLInputElement;
+                if (priceInput) priceInput.value = draft.basePrice;
+              }
+              if (draft.compareAtPrice) {
+                const compareInput = form.elements.namedItem('compareAtPrice') as HTMLInputElement;
+                if (compareInput) compareInput.value = draft.compareAtPrice;
+              }
+            }
+          }, 100);
+
+          setMessage('✓ Đã khôi phục bản nháp trước đó');
+          setTimeout(() => setMessage(''), 3000);
+        } else {
+          // Draft too old, clear it
+          localStorage.removeItem(DRAFT_KEY);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load draft:', error);
+    } finally {
+      setDraftLoaded(true);
+    }
+  }, []);
+
+  // Auto-save draft to localStorage
+  useEffect(() => {
+    if (!draftLoaded) return; // Don't save until initial load is complete
+
+    const saveDraft = () => {
+      if (!formRef.current) return;
+
+      const form = formRef.current;
+      const formData = new FormData(form);
+
+      const draft: ProductDraft = {
+        productName,
+        slug,
+        slugWasEdited,
+        productType,
+        availability,
+        status,
+        selectedTags,
+        images,
+        studio: String(formData.get('studio') ?? ''),
+        description: String(formData.get('description') ?? ''),
+        basePrice: String(formData.get('basePrice') ?? ''),
+        compareAtPrice: String(formData.get('compareAtPrice') ?? ''),
+        savedAt: Date.now()
+      };
+
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+      } catch (error) {
+        console.error('Failed to save draft:', error);
+      }
+    };
+
+    // Debounce save
+    const timeoutId = setTimeout(saveDraft, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [draftLoaded, productName, slug, slugWasEdited, productType, availability, status, selectedTags, images]);
 
   async function submit(formData: FormData) {
     setMessage('Đang tạo sản phẩm...');
@@ -43,6 +158,10 @@ export function ProductForm() {
           }))
         })
       });
+
+      // Clear draft after successful submission
+      localStorage.removeItem(DRAFT_KEY);
+
       window.dispatchEvent(new Event('admin:data-changed'));
       setMessage('Đã tạo sản phẩm.');
       window.location.href = '/catalog';
@@ -51,20 +170,53 @@ export function ProductForm() {
     }
   }
 
+  function clearDraft() {
+    if (confirm('Xóa toàn bộ dữ liệu đang nhập?')) {
+      localStorage.removeItem(DRAFT_KEY);
+      window.location.reload();
+    }
+  }
+
   return (
-    <form className="admin-form product-create-form" action={submit}>
+    <form ref={formRef} className="admin-form product-create-form" action={submit}>
       <div className="wide-field product-type-picker">
-        <div><strong>Loại sản phẩm</strong><span>Sản phẩm sẽ tự động xuất hiện trong trang tương ứng trên cửa hàng.</span></div>
+        <div>
+          <strong>Loại sản phẩm</strong>
+          <span>Sản phẩm sẽ tự động xuất hiện trong trang tương ứng trên cửa hàng.</span>
+        </div>
         <div className="product-type-options" role="radiogroup" aria-label="Loại sản phẩm">
-          <button type="button" role="radio" aria-checked={productType === 'ORDER'} className={productType === 'ORDER' ? 'is-selected' : ''} onClick={() => { setProductType('ORDER'); setAvailability('ORDER'); }}><b>Order</b><small>Figure và statue nhận đặt theo yêu cầu</small><i>Xuất hiện tại /order</i></button>
-          <button type="button" role="radio" aria-checked={productType === 'RESIN'} className={productType === 'RESIN' ? 'is-selected' : ''} onClick={() => { setProductType('RESIN'); setAvailability('PRE_ORDER'); }}><b>Resin</b><small>Mô hình resin sưu tầm</small><i>Xuất hiện tại trang Resin</i></button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={productType === 'ORDER'}
+            className={productType === 'ORDER' ? 'is-selected' : ''}
+            onClick={() => { setProductType('ORDER'); setAvailability('ORDER'); }}
+          >
+            <b>Order</b>
+            <small>Figure và statue nhận đặt theo yêu cầu</small>
+            <i>Xuất hiện tại /order</i>
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={productType === 'RESIN'}
+            className={productType === 'RESIN' ? 'is-selected' : ''}
+            onClick={() => { setProductType('RESIN'); setAvailability('PRE_ORDER'); }}
+          >
+            <b>Resin</b>
+            <small>Mô hình resin sưu tầm</small>
+            <i>Xuất hiện tại trang Resin</i>
+          </button>
         </div>
       </div>
       <div className="wide-field product-create-columns">
         <section className="product-form-section">
           <div className="product-form-section-heading">
             <span>01</span>
-            <div><strong>Thông tin cơ bản</strong><small>Tên, đường dẫn và nội dung giới thiệu sản phẩm.</small></div>
+            <div>
+              <strong>Thông tin cơ bản</strong>
+              <small>Tên, đường dẫn và nội dung giới thiệu sản phẩm.</small>
+            </div>
           </div>
           <div className="product-field-grid">
             <label>
@@ -94,15 +246,19 @@ export function ProductForm() {
               />
               <small>Tự tạo theo tên sản phẩm; bạn vẫn có thể sửa lại.</small>
             </label>
-            {productType === 'ORDER' ? (
+            {productType === 'ORDER' && (
               <label className="wide-field">
                 Studio / thương hiệu
-                <input name="studio" />
+                <input name="studio" placeholder="VD: Bandai, Good Smile Company..." />
               </label>
-            ) : null}
+            )}
             <label className="wide-field">
               Mô tả
-              <textarea name="description" placeholder="Thông tin nổi bật, kích thước, chất liệu..." />
+              <textarea
+                name="description"
+                placeholder="Thông tin nổi bật, kích thước, chất liệu..."
+                rows={4}
+              />
             </label>
           </div>
         </section>
@@ -110,7 +266,10 @@ export function ProductForm() {
         <section className="product-form-section">
           <div className="product-form-section-heading">
             <span>02</span>
-            <div><strong>Bán hàng</strong><small>Thiết lập trạng thái, tình trạng và giá bán.</small></div>
+            <div>
+              <strong>Bán hàng</strong>
+              <small>Thiết lập trạng thái, tình trạng và giá bán.</small>
+            </div>
           </div>
           <div className="product-field-grid">
             <label>
@@ -119,11 +278,20 @@ export function ProductForm() {
                 <option value="DRAFT">Bản nháp</option>
                 <option value="ACTIVE">Đang bán</option>
               </select>
-              <small className={status === 'ACTIVE' ? 'publish-hint is-live' : 'publish-hint'}>{status === 'ACTIVE' ? 'Sản phẩm sẽ xuất hiện trên website sau khi tạo.' : 'Bản nháp chỉ hiển thị trong admin, không xuất hiện trên website.'}</small>
+              <small className={status === 'ACTIVE' ? 'publish-hint is-live' : 'publish-hint'}>
+                {status === 'ACTIVE'
+                  ? 'Sản phẩm sẽ xuất hiện trên website sau khi tạo.'
+                  : 'Bản nháp chỉ hiển thị trong admin, không xuất hiện trên website.'}
+              </small>
             </label>
             <label>
               Tình trạng bán
-              <select name="availability" value={productType === 'ORDER' ? 'ORDER' : availability} disabled={productType === 'ORDER'} onChange={(event) => setAvailability(event.target.value)}>
+              <select
+                name="availability"
+                value={productType === 'ORDER' ? 'ORDER' : availability}
+                disabled={productType === 'ORDER'}
+                onChange={(event) => setAvailability(event.target.value)}
+              >
                 {productType === 'ORDER' ? (
                   <option value="ORDER">Đặt hàng</option>
                 ) : (
@@ -133,18 +301,31 @@ export function ProductForm() {
                   </>
                 )}
               </select>
-              {productType === 'RESIN' ? <small>Chọn “Đặt in” nếu nhận sản xuất theo yêu cầu, hoặc “Có sẵn” nếu hàng đã sẵn sàng giao.</small> : null}
+              {productType === 'RESIN' && (
+                <small>Chọn "Đặt in" nếu nhận sản xuất theo yêu cầu, hoặc "Có sẵn" nếu hàng đã sẵn sàng giao.</small>
+              )}
             </label>
             <label>
               Giá gốc
-              <input name="basePrice" inputMode="numeric" placeholder="2450000" />
+              <input
+                name="basePrice"
+                type="text"
+                inputMode="numeric"
+                placeholder="2450000"
+                required
+              />
             </label>
-            {productType === 'ORDER' ? (
+            {productType === 'ORDER' && (
               <label>
                 Giá cọc
-                <input name="compareAtPrice" inputMode="numeric" placeholder="2990000" />
+                <input
+                  name="compareAtPrice"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="500000"
+                />
               </label>
-            ) : null}
+            )}
           </div>
         </section>
       </div>
@@ -152,17 +333,23 @@ export function ProductForm() {
       <div className="wide-field">
         <TagPicker selected={selectedTags} onChange={setSelectedTags} />
       </div>
+
       <label className="wide-field product-images-field">
         Hình ảnh sản phẩm
         <ProductImageUploader images={images} onChange={setImages} productName={productName || 'Sản phẩm mới'} />
       </label>
+
       <div className="row-actions wide-field">
         <button type="submit">Tạo sản phẩm</button>
         <a className="secondary-button" href="/catalog">
           Quay lại catalog
         </a>
+        <button type="button" className="secondary-button" onClick={clearDraft} title="Xóa bản nháp">
+          Xóa nháp
+        </button>
       </div>
-      {message ? <p className="wide-field">{message}</p> : null}
+
+      {message && <p className="wide-field admin-message">{message}</p>}
     </form>
   );
 }
