@@ -48,7 +48,7 @@ export function ShippingForm({
 
             <form
                 className="checkout-form"
-                action={onSubmit}
+                onSubmit={(event) => event.preventDefault()}
                 aria-busy={isSubmitting || isLoading}
             >
                 {addresses.length > 0 && (
@@ -178,9 +178,17 @@ export function ShippingForm({
                 </div>
 
                 <button
-                    type="submit"
+                    type="button"
                     disabled={isSubmitting || isLoading || !hasItems}
                     className="checkout-submit-button"
+                    onClick={(event) => {
+                        const form = event.currentTarget.form;
+                        if (form && !form.checkValidity()) {
+                            form.reportValidity();
+                            return;
+                        }
+                        onSubmit();
+                    }}
                 >
                     {isSubmitting ? (
                         <>

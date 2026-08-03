@@ -92,6 +92,11 @@ export function CheckoutForm() {
       return;
     }
 
+    if (!fields.recipientName.trim() || !fields.recipientPhone.trim() || !fields.line1.trim() || !fields.city.trim()) {
+      setMessage('Vui lòng điền đầy đủ thông tin giao hàng.');
+      return;
+    }
+
     setIsSubmitting(true);
     setMessage('Đang tạo đơn hàng...');
 

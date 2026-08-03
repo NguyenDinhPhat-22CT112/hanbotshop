@@ -61,10 +61,21 @@ export class CheckoutService {
         const shippingFee = this.getDefaultShippingFee();
         const total = subtotal.plus(shippingFee);
         const itemDeposits = group.items.map((item) => {
-          const lineTotal = this.cartService.getItemUnitPrice(item).mul(item.quantity);
-          const percent = item.paymentRequirement === PaymentRequirement.DEPOSIT
-            ? item.product.depositPercent
-            : 100;
+          const unitPrice = this.cartService.getItemUnitPrice(item);
+          const quantity = item.quantity;
+          const lineTotal = unitPrice.mul(quantity);
+
+          if (item.paymentRequirement !== PaymentRequirement.DEPOSIT) {
+            return lineTotal.toDecimalPlaces(2);
+          }
+
+          const comparePrice = item.product.compareAtPrice;
+
+          if (comparePrice && comparePrice.greaterThan(0) && comparePrice.lessThan(unitPrice)) {
+            return comparePrice.mul(quantity).toDecimalPlaces(2);
+          }
+
+          const percent = item.product.depositPercent ?? 100;
 
           return lineTotal.mul(percent).div(100).toDecimalPlaces(2);
         });
