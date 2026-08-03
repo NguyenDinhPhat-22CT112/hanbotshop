@@ -1,5 +1,33 @@
-
+/**
+ * Production Page Styles
+ * 
+ * This file contains CSS specific to the Production page (apps/admin/src/app/production/page.tsx).
+ * Extracted from globals.css as part of CSS refactoring initiative.
+ * 
+ * Styles included:
+ * - .production-row: Table row layout specific to production management table
+ * - .production-manage-row: Styles for production management form rows (buttons, inputs, selects, labels)
+ * 
+ * Requirements: 2.7, 7.1, 7.4
+ */
 
 .production-row {
   grid-template-columns: 1.5fr 1.1fr 1fr 1.2fr 0.65fr;
+}
+
+.production-manage-row>button {
+  min-height: 36px;
+  border-radius: 8px;
+}
+
+.production-manage-row select,
+.production-manage-row input {
+  min-height: 38px;
+  border-color: #e2e5ea;
+  background: #fbfcfd;
+}
+
+.production-manage-row label small {
+  color: #8a93a0;
+  letter-spacing: .03em;
 }

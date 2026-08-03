@@ -1,4 +1,17 @@
-
+/**
+ * Categories Page Styles
+ * 
+ * This file contains CSS specific to the admin categories management page.
+ * Extracted from globals.css as part of the admin CSS refactoring.
+ * 
+ * Styles included:
+ * - .category-row: Grid layout for category table rows
+ * - .category-placement-field: Form fieldset for placement checkboxes
+ * - .category-placement-options: Checkbox group styling
+ * - .category-placement-badges: Display badges for selected placements
+ * 
+ * Related requirements: 2.5, 7.1, 7.4
+ */
 
 .category-row {
   grid-template-columns: 1.2fr 0.9fr 1fr 0.9fr 0.55fr 1fr;

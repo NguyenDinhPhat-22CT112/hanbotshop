@@ -17,9 +17,11 @@ export function ProductForm() {
   const [status, setStatus] = useState('ACTIVE');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
-  async function submit(formData: FormData) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setMessage('Đang tạo sản phẩm...');
 
+    const formData = new FormData(event.currentTarget);
     const systemTag = productType.toLowerCase();
     const tags = [...selectedTags, systemTag];
 
@@ -52,7 +54,7 @@ export function ProductForm() {
   }
 
   return (
-    <form className="admin-form product-create-form" action={submit}>
+    <form className="admin-form product-create-form" onSubmit={handleSubmit}>
       <div className="wide-field product-type-picker">
         <div><strong>Loại sản phẩm</strong><span>Sản phẩm sẽ tự động xuất hiện trong trang tương ứng trên cửa hàng.</span></div>
         <div className="product-type-options" role="radiogroup" aria-label="Loại sản phẩm">
