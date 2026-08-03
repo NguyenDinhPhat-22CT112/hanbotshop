@@ -153,6 +153,34 @@ describe('CartService', () => {
         assert.equal(result.items[0].quantity, 2);
     });
 
+    it('mergeGuestCart treats deposit and full items of the same product as separate', async () => {
+        const existingItem = mockCartItem('item1', 'prod1', null, 1, '100000');
+        const created: Array<{ productId: string; paymentRequirement: string }> = [];
+
+        prisma.cart.upsert = async () => ({
+            id: 'cart1',
+            userId: 'user1',
+            items: [existingItem]
+        });
+        prisma.product.findUnique = async () => mockActiveProduct('prod1');
+        prisma.cartItem.create = async ({ data }: any) => {
+            created.push({ productId: data.productId, paymentRequirement: data.paymentRequirement });
+            return { id: `created-${created.length}`, ...data };
+        };
+
+        const result = await service.mergeGuestCart('user1', {
+            items: [
+                { productId: 'prod1', quantity: 1, paymentRequirement: 'FULL' },
+                { productId: 'prod1', quantity: 1, paymentRequirement: 'DEPOSIT' }
+            ]
+        });
+
+        assert.deepEqual(created, [
+            { productId: 'prod1', paymentRequirement: 'DEPOSIT' }
+        ]);
+        assert.equal(result.mergedCount, 1);
+    });
+
     it('addCartItem treats same product with different variants as separate items', async () => {
         const itemWithoutVariant = mockCartItem('item1', 'prod1', null, 1, '100000');
         const itemWithVariant = mockCartItem('item2', 'prod1', 'var1', 1, '120000');
@@ -513,6 +541,7 @@ function mockCartItem(
         productId,
         variantId,
         quantity,
+        paymentRequirement: 'FULL',
         createdAt: new Date(),
         updatedAt: new Date(),
         product: {

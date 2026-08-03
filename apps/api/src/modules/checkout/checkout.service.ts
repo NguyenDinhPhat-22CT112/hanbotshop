@@ -62,7 +62,7 @@ export class CheckoutService {
         const total = subtotal.plus(shippingFee);
         const itemDeposits = group.items.map((item) => {
           const lineTotal = this.cartService.getItemUnitPrice(item).mul(item.quantity);
-          const percent = item.product.paymentRequirement === PaymentRequirement.DEPOSIT
+          const percent = item.paymentRequirement === PaymentRequirement.DEPOSIT
             ? item.product.depositPercent
             : 100;
 

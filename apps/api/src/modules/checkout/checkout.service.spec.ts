@@ -9,6 +9,7 @@ process.env.DEFAULT_SHIPPING_FEE = '30';
 function cartItem() {
   return {
     id: 'item-1', cartId: 'cart-1', productId: 'product-1', variantId: 'variant-1', quantity: 2,
+    paymentRequirement: 'FULL',
     createdAt: new Date(), updatedAt: new Date(),
     product: {
       id: 'product-1', name: 'Figure A', slug: 'figure-a', studio: 'Studio',
@@ -95,6 +96,7 @@ test('checkout does not clear cart when order creation fails', async () => {
 test('pre-order checkout calculates deposit and atomically commits variant inventory', async () => {
   const item = cartItem();
   (item.product as { availability: ProductAvailability }).availability = ProductAvailability.PRE_ORDER;
+  item.paymentRequirement = PaymentRequirement.DEPOSIT;
   item.product.paymentRequirement = PaymentRequirement.DEPOSIT;
   item.product.depositPercent = 40;
   item.variant.trackInventory = true;
@@ -123,6 +125,32 @@ test('pre-order checkout calculates deposit and atomically commits variant inven
   assert.equal(orderData?.items.create[0].depositAmount.toString(), '120');
   assert.equal(orderData?.items.create[0].inventoryCommitted, true);
   assert.equal(inventoryDecrement, 2);
+});
+
+test('deposit product added as full payment charges 100% deposit', async () => {
+  const item = cartItem();
+  item.product.paymentRequirement = PaymentRequirement.DEPOSIT;
+  item.product.depositPercent = 40;
+  let orderData: { depositRequired: Prisma.Decimal; items: { create: Array<{ depositAmount: Prisma.Decimal }> } } | undefined;
+  const tx = {
+    productVariant: { updateMany: async () => ({ count: 1 }) },
+    product: { updateMany: async () => ({ count: 1 }) },
+    order: { create: async ({ data }: { data: typeof orderData }) => { orderData = data; return { id: 'order-1' }; } },
+    user: { findUnique: async () => null },
+    cartItem: { deleteMany: async () => ({ count: 1 }) }
+  };
+  const prisma = { $transaction: async (handler: (client: typeof tx) => unknown) => handler(tx) };
+  const cartService = { ensureCart: async () => ({ id: 'cart-1', items: [item] }), getItemUnitPrice: () => new Prisma.Decimal(150) };
+  const orders = {
+    findOrderOrThrow: async (id: string) => ({ id }),
+    serializeOrder: (value: unknown) => value
+  };
+  const service = new CheckoutService(prisma as never, cartService as never, orders as never);
+
+  await service.checkout('user-1', checkoutDto);
+
+  assert.equal(orderData?.depositRequired.toString(), '330');
+  assert.equal(orderData?.items.create[0].depositAmount.toString(), '300');
 });
 
 test('checkout rejects insufficient tracked inventory', async () => {

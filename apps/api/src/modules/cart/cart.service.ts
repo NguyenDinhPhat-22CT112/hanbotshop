@@ -56,12 +56,12 @@ export class CartService {
   async mergeGuestCart(userId: string, dto: MergeGuestCartDto) {
     const cart = await this.ensureCart(userId);
     const existingKeys = new Set(
-      cart.items.map((item) => this.cartItemKey(item.productId, item.variantId))
+      cart.items.map((item) => this.cartItemKey(item.productId, item.variantId, item.paymentRequirement))
     );
     let mergedCount = 0;
 
     for (const item of dto.items) {
-      const key = this.cartItemKey(item.productId, item.variantId);
+      const key = this.cartItemKey(item.productId, item.variantId, item.paymentRequirement);
 
       if (existingKeys.has(key)) {
         continue;
@@ -201,8 +201,8 @@ export class CartService {
     return variant;
   }
 
-  private cartItemKey(productId: string, variantId?: string | null) {
-    return `${productId}:${variantId ?? 'base'}`;
+  private cartItemKey(productId: string, variantId?: string | null, paymentRequirement?: 'FULL' | 'DEPOSIT' | null) {
+    return `${productId}:${variantId ?? 'base'}:${paymentRequirement ?? 'FULL'}`;
   }
 
   private async ensureCartItemOwner(userId: string, itemId: string) {

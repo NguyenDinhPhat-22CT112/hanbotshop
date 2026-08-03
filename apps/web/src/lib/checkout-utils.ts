@@ -1,12 +1,13 @@
 export type CheckoutLine = {
   totalPrice: string;
-  product: { paymentRequirement: 'FULL' | 'DEPOSIT'; depositPercent: number };
+  paymentRequirement: 'FULL' | 'DEPOSIT';
+  product: { depositPercent: number };
 };
 
 export function calculateDepositRequired(items: CheckoutLine[]) {
   return items.reduce((total, item) => {
     const lineTotal = Number(item.totalPrice);
-    const percent = item.product.paymentRequirement === 'DEPOSIT' ? item.product.depositPercent : 100;
+    const percent = item.paymentRequirement === 'DEPOSIT' ? item.product.depositPercent : 100;
     return total + lineTotal * percent / 100;
   }, 0);
 }

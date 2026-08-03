@@ -10,10 +10,10 @@ test('safeInternalPath accepts local redirects and rejects external redirects', 
   assert.equal(safeInternalPath('https://evil.example', '/account'), '/account');
 });
 
-test('calculateDepositRequired combines full payments and product deposits', () => {
+test('calculateDepositRequired combines full payments and item deposits', () => {
   const amount = calculateDepositRequired([
-    { totalPrice: '100000', product: { paymentRequirement: 'FULL', depositPercent: 100 } },
-    { totalPrice: '200000', product: { paymentRequirement: 'DEPOSIT', depositPercent: 30 } }
+    { totalPrice: '100000', paymentRequirement: 'FULL', product: { depositPercent: 100 } },
+    { totalPrice: '200000', paymentRequirement: 'DEPOSIT', product: { depositPercent: 30 } }
   ]);
   assert.equal(amount, 160000);
 });
