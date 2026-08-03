@@ -5,12 +5,12 @@ export default function AdminProductionDetailPage({ params }: { params: { id: st
     <main className="admin-shell">
       <header className="admin-header">
         <div>
-          <p>Sản xuất</p>
-          <h1>Chi tiết production job</h1>
-          <span>Theo dõi timeline, events, internal notes, assignee và độ ưu tiên xử lý.</span>
+          <p>San xuat</p>
+          <h1>Chi tiet production job</h1>
+          <span>Theo doi timeline, events, internal notes, assignee va do uu tien xu ly.</span>
         </div>
         <a className="secondary-button" href="/production">
-          Quay lại
+          Quay lai
         </a>
       </header>
       <AdminProductionDetail id={decodeURIComponent(params.id)} />

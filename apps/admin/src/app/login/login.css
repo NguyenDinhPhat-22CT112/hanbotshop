@@ -1,19 +1,4 @@
-/**
- * Login Page Styles
- * 
- * This file contains CSS specific to the login page and user account controls.
- * 
- * Styles included:
- * - .admin-login-layout: Full-height layout wrapper
- * - .admin-login-shell: Centered content container
- * - .admin-login-card: Login form card with responsive padding
- * - .user-account-controls: Account management section layout
- * - .user-password-reset: Password reset form styling
- * 
- * Note: Base layout styles (.admin-app-layout, .admin-sidebar) remain in globals.css
- * 
- * Requirements: 2.3, 7.1, 7.4
- */
+
 
 .admin-login-layout {
   min-height: 100vh;

@@ -1,15 +1,4 @@
-/**
- * Audit Logs Page Styles
- * 
- * This file contains styles specific to the Audit Logs page (apps/admin/src/app/audit-logs/).
- * These styles were extracted from globals.css during CSS refactoring.
- * 
- * Styles included:
- * - .audit-row: Grid layout for audit log table rows
- * - .audit-details: Expandable details display for audit log entries
- * 
- * Requirements: 2.10, 7.1, 7.4
- */
+
 
 .audit-row {
   grid-template-columns: 1.1fr 1.2fr 1.1fr 1fr 1.6fr;

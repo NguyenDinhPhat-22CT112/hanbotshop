@@ -1,16 +1,5 @@
-/**
- * Orders Page Styles
- * 
- * This file contains styles specific to the Orders management page.
- * Includes order table layouts, order management forms, and detail views.
- * 
- * Related pages:
- * - apps/admin/src/app/orders/page.tsx
- * 
- * Requirements: 2.6, 7.1, 7.4, 8.1
- */
 
-/* Order Table Layouts */
+
 .order-row {
   grid-template-columns: 1.25fr 1.1fr 1.05fr 1.05fr 1.25fr 0.85fr 0.65fr;
 }
@@ -19,26 +8,28 @@
   grid-template-columns: 1.2fr 1fr 1fr 1fr 1.1fr;
 }
 
-/* Order Management Forms */
 .table-panel .table-row>button[type="submit"],
-.order-manage-row>button {
+.order-manage-row>button,
+.production-manage-row>button {
   min-height: 36px;
   border-radius: 8px;
 }
 
 .order-manage-row select,
-.order-manage-row input {
+.order-manage-row input,
+.production-manage-row select,
+.production-manage-row input {
   min-height: 38px;
   border-color: #e2e5ea;
   background: #fbfcfd;
 }
 
-.order-manage-row label small {
+.order-manage-row label small,
+.production-manage-row label small {
   color: #8a93a0;
   letter-spacing: .03em;
 }
 
-/* Order Count Display */
 .order-count {
   color: #697281 !important;
 }
@@ -46,9 +37,4 @@
 .order-count b {
   color: #232832;
   font-size: 15px;
-}
-
-/* Order Detail Item Layout */
-.detail-item-row {
-  grid-template-columns: 2fr 0.8fr 1fr 1fr;
 }

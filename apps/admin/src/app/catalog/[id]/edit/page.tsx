@@ -5,12 +5,12 @@ export default function AdminProductEditPage({ params }: { params: { id: string 
     <main className="admin-shell">
       <header className="admin-header">
         <div>
-          <p>Sản phẩm</p>
-          <h1>Chỉnh sửa sản phẩm</h1>
-          <span>Quản lý thông tin bán, category, variant, image, tag và trạng thái sản phẩm.</span>
+          <p>San pham</p>
+          <h1>Chinh sua san pham</h1>
+          <span>Quan ly thong tin ban, category, variant, image, tag va trang thai san pham.</span>
         </div>
         <a className="secondary-button" href="/catalog">
-          Quay lại
+          Quay lai
         </a>
       </header>
       <AdminProductEditor id={decodeURIComponent(params.id)} />

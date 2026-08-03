@@ -258,9 +258,6 @@ h1 {
 
 /* Dashboard-specific styles moved to app/page.css */
 
-/* Login-specific styles moved to app/login/login.css */
-/* Extracted: .admin-login-layout, .admin-login-shell, .admin-login-card, .user-account-controls, .user-password-reset */
-
 .admin-links {
   display: flex;
   flex-wrap: wrap;
@@ -488,21 +485,13 @@ h1 {
   overflow-wrap: anywhere;
 }
 
-/* Orders-specific styles moved to app/orders/orders.css */
-/* Extracted: .order-row, .user-order-row, .order-manage-row, .order-count, .detail-item-row */
+.detail-item-row {
+  grid-template-columns: 2fr 0.8fr 1fr 1fr;
+}
 
 /* Media-specific styles moved to app/media/media.css */
 
 /* Reports-specific styles moved to app/reports/reports.css */
-
-/* Audit Logs-specific styles moved to app/audit-logs/audit-logs.css */
-/* Extracted: .audit-row, .audit-details */
-
-/* Production-specific styles moved to app/production/production.css */
-/* Extracted: .production-row, .production-manage-row */
-
-/* Categories-specific styles moved to app/categories/categories.css */
-/* Extracted: .category-row, .category-placement-field, .category-placement-options, .category-placement-badges */
 
 .table-link-row {
   color: inherit;
@@ -941,8 +930,7 @@ h1 {
   background: #d6382f;
 }
 
-/* Media-specific styles moved to app/media/media.css */
-/* Extracted: .media-row, .media-row .action-cell */
+/* .media-row .action-cell moved to app/media/media.css */
 
 @media(min-width:1181px) {
   .filter-panel .filter-form {

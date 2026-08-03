@@ -1,5 +1,4 @@
 import { ReportsPanel } from '../../components/reports-panel';
-import './reports.css';
 
 export default function AdminReportsPage() {
   return (
@@ -7,8 +6,8 @@ export default function AdminReportsPage() {
       <header className="admin-header">
         <div>
           <p>Reports</p>
-          <h1>Báo cáo doanh thu</h1>
-          <span>Số liệu tổng quan cho đơn hàng, thanh toán và các đơn cần đối soát.</span>
+          <h1>Bao cao doanh thu</h1>
+          <span>So lieu tong quan cho don hang, thanh toan va cac don can doi soat.</span>
         </div>
       </header>
       <ReportsPanel />
