@@ -1,4 +1,3 @@
-import './page.css';
 import { DashboardPanel } from '../components/dashboard-panel';
 
 export default function AdminHomePage() {

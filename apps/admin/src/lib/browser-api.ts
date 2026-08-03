@@ -102,10 +102,6 @@ export async function adminLogin(email: string, password: string) {
   });
   const payload = (await response.json().catch(() => null)) as AdminAuthPayload | null;
 
-  if (response.status === 429) {
-    throw new Error('Bạn đã thử đăng nhập sai quá nhiều lần. Vui lòng đợi 1 phút trước khi thử lại.');
-  }
-
   if (!response.ok || !payload) {
     throw new Error(getErrorMessage(payload, 'Không đăng nhập được.'));
   }

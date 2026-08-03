@@ -5,12 +5,12 @@ export default function AdminUserDetailPage({ params }: { params: { id: string }
     <main className="admin-shell">
       <header className="admin-header">
         <div>
-          <p>Người dùng</p>
-          <h1>Chi tiết người dùng</h1>
-          <span>Xem hồ sơ, địa chỉ, đơn hàng gần đây và cập nhật quyền hoặc trạng thái của tài khoản.</span>
+          <p>Nguoi dung</p>
+          <h1>Chi tiet nguoi dung</h1>
+          <span>Xem ho so, dia chi, don hang gan day va cap nhat role/status cua tai khoan.</span>
         </div>
         <a className="secondary-button" href="/users">
-          Quay lại
+          Quay lai
         </a>
       </header>
       <AdminUserDetail id={decodeURIComponent(params.id)} />

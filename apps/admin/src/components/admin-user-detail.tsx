@@ -41,13 +41,11 @@ const statuses = ['ACTIVE', 'DISABLED'];
 
 export function AdminUserDetail({ id }: { id: string }) {
   const [user, setUser] = useState<UserDetail | null>(null);
-  const [message, setMessage] = useState('Đang tải người dùng...');
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [passwordFormKey, setPasswordFormKey] = useState(0);
+  const [message, setMessage] = useState('Dang tai nguoi dung...');
 
   async function loadUser() {
     if (!getAdminToken()) {
-      setMessage('Vui lòng đăng nhập quản trị trước.');
+      setMessage('Vui long dang nhap quan tri truoc.');
       return;
     }
 
@@ -56,7 +54,7 @@ export function AdminUserDetail({ id }: { id: string }) {
       setUser(payload);
       setMessage('');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Không tải được người dùng.');
+      setMessage(error instanceof Error ? error.message : 'Khong tai duoc nguoi dung.');
     }
   }
 
@@ -67,42 +65,21 @@ export function AdminUserDetail({ id }: { id: string }) {
   async function updateUser(formData: FormData) {
     const role = String(formData.get('role') ?? '');
     const status = String(formData.get('status') ?? '');
-    setMessage('Đang cập nhật người dùng...');
+    setMessage('Dang cap nhat nguoi dung...');
 
     try {
       if (role) {
         await adminFetch(`/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) });
       }
+
       if (status) {
         await adminFetch(`/users/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
       }
+
       await loadUser();
-      setMessage('Đã cập nhật người dùng.');
+      setMessage('Da cap nhat nguoi dung.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Không cập nhật được người dùng.');
-    }
-  }
-
-  async function setNewPassword(formData: FormData) {
-    const password = String(formData.get('password') ?? '');
-    const confirmation = String(formData.get('passwordConfirmation') ?? '');
-
-    if (password !== confirmation) {
-      setMessage('Xác nhận mật khẩu mới chưa khớp.');
-      return;
-    }
-    if (!window.confirm('Đặt mật khẩu mới cho tài khoản này? Mật khẩu cũ sẽ không còn dùng được.')) {
-      return;
-    }
-
-    setMessage('Đang đặt mật khẩu mới...');
-    try {
-      await adminFetch(`/users/${id}/password`, { method: 'PATCH', body: JSON.stringify({ password }) });
-      setPasswordFormKey((value) => value + 1);
-      setShowNewPassword(false);
-      setMessage('Đã đặt mật khẩu mới.');
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Không thể đặt mật khẩu mới.');
+      setMessage(error instanceof Error ? error.message : 'Khong cap nhat duoc nguoi dung.');
     }
   }
 
@@ -114,60 +91,87 @@ export function AdminUserDetail({ id }: { id: string }) {
     <div className="detail-stack">
       <section className="admin-panel detail-grid">
         <div>
-          <h2>Thông tin tài khoản</h2>
+          <h2>Thong tin tai khoan</h2>
           <dl className="detail-list">
-            <div><dt>Email</dt><dd>{user.email}</dd></div>
-            <div><dt>Họ và tên</dt><dd>{user.name ?? 'Chưa cập nhật'}</dd></div>
-            <div><dt>Số điện thoại</dt><dd>{user.phone ?? 'Chưa cập nhật'}</dd></div>
-            <div><dt>Ngày tạo</dt><dd>{formatDateTime(user.createdAt)}</dd></div>
-            <div><dt>Cập nhật lần cuối</dt><dd>{formatDateTime(user.updatedAt)}</dd></div>
+            <div>
+              <dt>Email</dt>
+              <dd>{user.email}</dd>
+            </div>
+            <div>
+              <dt>Ten</dt>
+              <dd>{user.name ?? '-'}</dd>
+            </div>
+            <div>
+              <dt>Dien thoai</dt>
+              <dd>{user.phone ?? '-'}</dd>
+            </div>
+            <div>
+              <dt>Ngay tao</dt>
+              <dd>{formatDateTime(user.createdAt)}</dd>
+            </div>
           </dl>
         </div>
-
-        <div className="user-account-controls">
-          <div>
-            <h2>Phân quyền</h2>
-            <form className="admin-form" action={updateUser}>
-              <label>Vai trò<select name="role" defaultValue={user.role}>{roles.map((role) => <option value={role} key={role}>{labelOf(role)}</option>)}</select></label>
-              <label>Trạng thái<select name="status" defaultValue={user.status}>{statuses.map((status) => <option value={status} key={status}>{labelOf(status)}</option>)}</select></label>
-              <button type="submit">Lưu thay đổi</button>
-            </form>
-          </div>
-
-          <section className="user-password-reset" aria-labelledby="user-password-heading">
-            <div><strong id="user-password-heading">Mật khẩu</strong><span>Mật khẩu hiện tại không thể xem lại. Bạn chỉ có thể đặt mật khẩu mới.</span></div>
-            <form className="admin-form" action={setNewPassword} key={passwordFormKey}>
-              <label className="password-input-field">
-                Mật khẩu mới
-                <div><input name="password" type={showNewPassword ? 'text' : 'password'} minLength={8} autoComplete="new-password" required /><button type="button" onClick={() => setShowNewPassword((value) => !value)}>{showNewPassword ? 'Ẩn' : 'Hiện'}</button></div>
-              </label>
-              <label>Xác nhận mật khẩu mới<input name="passwordConfirmation" type={showNewPassword ? 'text' : 'password'} minLength={8} autoComplete="new-password" required /></label>
-              <button type="submit" className="secondary-button">Đặt mật khẩu mới</button>
-            </form>
-          </section>
+        <div>
+          <h2>Phan quyen</h2>
+          <form className="admin-form" action={updateUser}>
+            <label>
+              Role
+              <select name="role" defaultValue={user.role}>
+                {roles.map((role) => (
+                  <option value={role} key={role}>
+                    {labelOf(role)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Status
+              <select name="status" defaultValue={user.status}>
+                {statuses.map((status) => (
+                  <option value={status} key={status}>
+                    {labelOf(status)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="submit">Luu nguoi dung</button>
+          </form>
         </div>
       </section>
 
       <section className="table-panel">
-        <div className="table-row user-order-row table-head"><span>Đơn hàng</span><span>Trạng thái</span><span>Thanh toán</span><span>Tổng tiền</span><span>Ngày tạo</span></div>
+        <div className="table-row user-order-row table-head">
+          <span>Don hang</span>
+          <span>Status</span>
+          <span>Payment</span>
+          <span>Tong tien</span>
+          <span>Ngay tao</span>
+        </div>
         {user.orders.map((order) => (
           <a className="table-row user-order-row table-link-row" href={`/orders/${order.id}`} key={order.id}>
-            <strong>{order.orderNumber}</strong><span>{labelOf(order.status)}</span><span>{labelOf(order.paymentStatus)}</span><span>{formatPrice(order.total)}</span><span>{formatDateTime(order.createdAt)}</span>
+            <strong>{order.orderNumber}</strong>
+            <span>{labelOf(order.status)}</span>
+            <span>{labelOf(order.paymentStatus)}</span>
+            <span>{formatPrice(order.total)}</span>
+            <span>{formatDateTime(order.createdAt)}</span>
           </a>
         ))}
-        {!user.orders.length ? <p className="admin-message table-message">Người dùng này chưa có đơn hàng.</p> : null}
       </section>
 
       <section className="admin-panel">
-        <h2>Địa chỉ</h2>
+        <h2>Dia chi</h2>
         <div className="detail-card-grid">
           {user.addresses.map((address) => (
             <article key={address.id}>
-              <strong>{address.recipient}{address.isDefault ? ' · Mặc định' : ''}</strong>
-              <span>{address.phone}</span><p>{formatAddress(address)}</p>
+              <strong>
+                {address.recipient}
+                {address.isDefault ? ' / Default' : ''}
+              </strong>
+              <span>{address.phone}</span>
+              <p>{formatAddress(address)}</p>
             </article>
           ))}
-          {!user.addresses.length ? <p>Chưa có địa chỉ lưu.</p> : null}
+          {!user.addresses.length ? <p>Chua co dia chi.</p> : null}
         </div>
       </section>
 
