@@ -90,11 +90,11 @@ export function AdminOrderDetail({ id }: { id: string }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [paymentNotes, setPaymentNotes] = useState<Note[]>([]);
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
-  const [message, setMessage] = useState('Dang tai don hang...');
+  const [message, setMessage] = useState('Đang tải đơn hàng...');
 
   async function loadOrder() {
     if (!getAdminToken()) {
-      setMessage('Vui long dang nhap quan tri truoc.');
+      setMessage('Vui lòng đăng nhập quản trị trước.');
       return;
     }
 
@@ -112,7 +112,7 @@ export function AdminOrderDetail({ id }: { id: string }) {
       setTimeline(timelinePayload.data);
       setMessage('');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Khong tai duoc don hang.');
+      setMessage(error instanceof Error ? error.message : 'Không tải được đơn hàng.');
     }
   }
 
@@ -124,7 +124,7 @@ export function AdminOrderDetail({ id }: { id: string }) {
     const status = String(formData.get('status') ?? '');
     const trackingCarrier = String(formData.get('trackingCarrier') ?? '').trim();
     const trackingNumber = String(formData.get('trackingNumber') ?? '').trim();
-    setMessage('Dang cap nhat don hang...');
+    setMessage('Đang cập nhật đơn hàng...');
 
     try {
       if (status) {
@@ -139,9 +139,9 @@ export function AdminOrderDetail({ id }: { id: string }) {
       }
 
       await loadOrder();
-      setMessage('Da cap nhat don hang.');
+      setMessage('Đã cập nhật đơn hàng.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Khong cap nhat duoc don hang.');
+      setMessage(error instanceof Error ? error.message : 'Không cập nhật được đơn hàng.');
     }
   }
 
@@ -185,7 +185,7 @@ export function AdminOrderDetail({ id }: { id: string }) {
       return;
     }
 
-    setMessage('Dang them ghi chu...');
+    setMessage('Đang thêm ghi chú...');
 
     try {
       await adminFetch(type === 'PAYMENT' ? `/orders/${id}/payment-notes` : `/orders/${id}/notes`, {
@@ -193,21 +193,21 @@ export function AdminOrderDetail({ id }: { id: string }) {
         body: JSON.stringify(type === 'PAYMENT' ? { body } : { type, body })
       });
       await loadOrder();
-      setMessage('Da them ghi chu.');
+      setMessage('Đã thêm ghi chú.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Khong them duoc ghi chu.');
+      setMessage(error instanceof Error ? error.message : 'Không thêm được ghi chú.');
     }
   }
 
   async function cancelOrder() {
-    setMessage('Dang huy don hang...');
+    setMessage('Đang hủy đơn hàng...');
 
     try {
       await adminFetch(`/orders/${id}/cancel`, { method: 'POST' });
       await loadOrder();
-      setMessage('Da huy don hang.');
+      setMessage('Đã hủy đơn hàng.');
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'Khong huy duoc don hang.');
+      setMessage(error instanceof Error ? error.message : 'Không hủy được đơn hàng.');
     }
   }
 
@@ -231,63 +231,63 @@ export function AdminOrderDetail({ id }: { id: string }) {
     <div className="detail-stack">
       <section className="admin-panel detail-grid">
         <div>
-          <h2>Thong tin don</h2>
+          <h2>Thông Tin Đơn Hàng</h2>
           <dl className="detail-list">
             <div>
-              <dt>Khach hang</dt>
+              <dt>Khách Hàng</dt>
               <dd>
                 <a href={`/users/${order.user.id}`}>{order.user.name ?? order.user.email}</a>
               </dd>
             </div>
             <div>
-              <dt>Loai don</dt>
-              <dd>{order.type === 'RESIN' ? 'Don Resin' : 'Don Order'}</dd>
+              <dt>Loại Đơn</dt>
+              <dd>{order.type === 'RESIN' ? 'Đơn Resin' : 'Đơn Order'}</dd>
             </div>
             <div>
-              <dt>Lien he</dt>
+              <dt>Liên Hệ</dt>
               <dd>{[order.recipientName, order.recipientPhone].filter(Boolean).join(' / ') || '-'}</dd>
             </div>
             <div>
-              <dt>Dia chi</dt>
+              <dt>Địa Chỉ</dt>
               <dd>{formatAddress(order.shippingAddress)}</dd>
             </div>
             <div>
-              <dt>Ngay tao</dt>
+              <dt>Ngày Tạo</dt>
               <dd>{formatDateTime(order.createdAt)}</dd>
             </div>
           </dl>
         </div>
         <div>
-          <h2>Tong tien</h2>
+          <h2>Tổng Tiền</h2>
           <dl className="detail-list">
             <div>
-              <dt>Tam tinh</dt>
+              <dt>Tạm Tính</dt>
               <dd>{formatPrice(order.subtotal)}</dd>
             </div>
             <div>
-              <dt>Phi giao hang</dt>
+              <dt>Phí Giao Hàng</dt>
               <dd>{formatPrice(order.shippingFee)}</dd>
             </div>
             <div>
-              <dt>Tong</dt>
+              <dt>Tổng</dt>
               <dd>{formatPrice(order.total)}</dd>
             </div>
             <div>
-              <dt>Coc can thu</dt>
+              <dt>Cọc Cần Thu</dt>
               <dd>{formatPrice(order.depositRequired)}</dd>
             </div>
             {order.type === 'ORDER' ? (
               <div>
-                <dt>Yeu cau dot 2</dt>
+                <dt>Yêu Cầu Đợt 2</dt>
                 <dd>{formatPrice(order.secondPaymentRequired)}</dd>
               </div>
             ) : null}
             <div>
-              <dt>Da thu</dt>
+              <dt>Đã Thu</dt>
               <dd>{formatPrice(order.paidAmount)}</dd>
             </div>
             <div>
-              <dt>Con thieu</dt>
+              <dt>Còn Thiếu</dt>
               <dd>{formatPrice(order.remainingAmount)}</dd>
             </div>
             <div>
@@ -299,10 +299,10 @@ export function AdminOrderDetail({ id }: { id: string }) {
       </section>
 
       <section className="admin-panel">
-        <h2>Cap nhat van hanh</h2>
+        <h2>Cập Nhật Vận Hành</h2>
         <form className="admin-form compact-form" action={updateOrder}>
           <label>
-            Trang thai
+            Trạng Thái
             <select name="status" defaultValue={order.status}>
               {statusesFor(order.type).map((status) => (
                 <option value={status} key={status}>
@@ -312,17 +312,17 @@ export function AdminOrderDetail({ id }: { id: string }) {
             </select>
           </label>
           <label>
-            Don vi van chuyen
+            Đơn Vị Vận Chuyển
             <input name="trackingCarrier" defaultValue={order.trackingCarrier ?? ''} />
           </label>
           <label>
-            Ma tracking
+            Mã Tracking
             <input name="trackingNumber" defaultValue={order.trackingNumber ?? ''} />
           </label>
           <div className="row-actions wide-field">
-            <button type="submit">Luu cap nhat</button>
+            <button type="submit">Lưu Cập Nhật</button>
             <button className="danger-button" type="button" onClick={() => void cancelOrder()}>
-              Huy don
+              Hủy Đơn
             </button>
           </div>
         </form>
@@ -330,14 +330,14 @@ export function AdminOrderDetail({ id }: { id: string }) {
 
       {order.type === 'ORDER' && order.status === 'DEPOSIT_PAID' ? (
         <section className="admin-panel">
-          <h2>Yeu cau thanh toan dot 2</h2>
+          <h2>Yêu Cầu Thanh Toán Đợt 2</h2>
           <p>
-            Con lai {formatPrice(order.remainingAmount)}. Admin nhap so tien can thu trong dot 2;
-            phan con lai se duoc tinh la COD khi giao hang.
+            Còn lại {formatPrice(order.remainingAmount)}. Admin nhập số tiền cần thu trong đợt 2;
+            phần còn lại sẽ được tính là COD khi giao hàng.
           </p>
           <form className="admin-form compact-form" action={requestSecondPayment}>
             <label>
-              So tien dot 2
+              Số Tiền Đợt 2
               <input
                 name="amount"
                 type="number"
@@ -347,40 +347,40 @@ export function AdminOrderDetail({ id }: { id: string }) {
                 required
               />
             </label>
-            <button type="submit">Gui yeu cau thanh toan dot 2</button>
+            <button type="submit">Gửi Yêu Cầu Thanh Toán Đợt 2</button>
           </form>
         </section>
       ) : null}
 
       {order.type === 'ORDER' && order.status === 'SHIPPING' && Number(order.remainingAmount) > 0 ? (
         <section className="admin-panel">
-          <h2>Ghi nhan tien COD</h2>
-          <p>Khach con thieu {formatPrice(order.remainingAmount)} khi nhan hang.</p>
+          <h2>Ghi Nhận Tiền COD</h2>
+          <p>Khách còn thiếu {formatPrice(order.remainingAmount)} khi nhận hàng.</p>
           <form className="admin-form compact-form" action={recordCodPayment}>
             <label>
-              So tien da thu
+              Số Tiền Đã Thu
               <input name="amount" type="number" min="1" max={order.remainingAmount} defaultValue={order.remainingAmount} required />
             </label>
             <label>
-              Ghi chu
-              <input name="note" defaultValue="Shipper da thu tien con lai." />
+              Ghi Chú
+              <input name="note" defaultValue="Shipper đã thu tiền còn lại." />
             </label>
-            <button type="submit">Xac nhan da thu COD</button>
+            <button type="submit">Xác Nhận Đã Thu COD</button>
           </form>
         </section>
       ) : null}
 
       <section className="table-panel">
         <div className="table-row detail-item-row table-head">
-          <span>San pham</span>
-          <span>So luong</span>
-          <span>Don gia</span>
-          <span>Thanh tien</span>
+          <span>Sản Phẩm</span>
+          <span>Số Lượng</span>
+          <span>Đơn Giá</span>
+          <span>Thành Tiền</span>
         </div>
         {order.items.map((item) => (
           <div className="table-row detail-item-row" key={item.id}>
             <strong>
-              {item.productSnapshot?.name ?? 'San pham'}
+              {item.productSnapshot?.name ?? 'Sản phẩm'}
               <small>{item.productSnapshot?.studio ?? '-'}</small>
             </strong>
             <span>{item.quantity}</span>
@@ -391,8 +391,8 @@ export function AdminOrderDetail({ id }: { id: string }) {
       </section>
 
       <section className="detail-two-column">
-        <NotesPanel title="Ghi chu noi bo" notes={notes} onSubmit={(formData) => addNote(formData, 'GENERAL')} />
-        <NotesPanel title="Ghi chu thanh toan" notes={paymentNotes} onSubmit={(formData) => addNote(formData, 'PAYMENT')} />
+        <NotesPanel title="Ghi Chú Nội Bộ" notes={notes} onSubmit={(formData) => addNote(formData, 'GENERAL')} />
+        <NotesPanel title="Ghi Chú Thanh Toán" notes={paymentNotes} onSubmit={(formData) => addNote(formData, 'PAYMENT')} />
       </section>
 
       <section className="detail-two-column">
@@ -419,35 +419,82 @@ function NotesPanel({
       <h2>{title}</h2>
       <form className="admin-form" action={onSubmit}>
         <label>
-          Noi dung
+          Nội Dung
           <textarea name="body" required />
         </label>
-        <button type="submit">Them ghi chu</button>
+        <button type="submit">Thêm Ghi Chú</button>
       </form>
       <div className="detail-list-block">
-        {notes.map((note) => (
-          <article key={note.id}>
-            <strong>{formatDateTime(note.createdAt)}</strong>
-            <p>{note.body}</p>
-          </article>
-        ))}
+        {notes.length === 0 ? (
+          <p className="empty-state">Chưa có ghi chú nào.</p>
+        ) : (
+          notes.map((note) => (
+            <article key={note.id}>
+              <strong>{formatDateTime(note.createdAt)}</strong>
+              <p>{note.body}</p>
+            </article>
+          ))
+        )}
       </div>
     </section>
   );
 }
 
 function TimelinePanel({ items }: { items: TimelineItem[] }) {
+  // Lọc và format timeline items tương tự như customer view
+  const formattedItems = items.map((item) => {
+    const payload = typeof item === 'object' && 'payload' in item && item.payload && typeof item.payload === 'object'
+      ? item.payload as Record<string, unknown>
+      : {};
+
+    // Lấy status mới nếu có
+    const displayStatus = (typeof payload.after === 'string' ? payload.after : item.status) ?? item.type;
+    const displayLabel = labelOf(displayStatus);
+
+    // Tạo note chi tiết hơn
+    let note = '';
+    if (item.type === 'STATUS_CHANGED' && typeof payload.before === 'string' && typeof payload.after === 'string') {
+      note = `Chuyển từ ${labelOf(payload.before)} → ${labelOf(payload.after)}`;
+    } else if (item.type === 'PAYMENT_STATUS_CHANGED' && typeof payload.before === 'string' && typeof payload.after === 'string') {
+      note = `Thanh toán: ${labelOf(payload.before)} → ${labelOf(payload.after)}`;
+      if (typeof payload.paidAmount === 'string') {
+        note += ` · Đã thu: ${formatPrice(payload.paidAmount)}`;
+      }
+    } else if (item.type === 'ORDER_CREATED') {
+      note = 'Đơn hàng được tạo bởi khách hàng';
+    } else if (item.type === 'CHECKOUT_CREATED') {
+      note = 'Session thanh toán được tạo';
+    } else if (item.type === 'PAYMENT_CONFIRMED') {
+      note = 'Thanh toán được xác nhận';
+    } else if (item.note) {
+      note = item.note;
+    }
+
+    return {
+      label: displayLabel,
+      note,
+      time: formatDateTime(item.createdAt),
+      type: item.type
+    };
+  });
+
   return (
     <section className="admin-panel">
-      <h2>Timeline</h2>
-      <div className="detail-list-block">
-        {items.map((item, index) => (
-          <article key={`${item.type}-${item.createdAt}-${index}`}>
-            <strong>{labelOf(item.status ?? item.type)}</strong>
-            <small>{formatDateTime(item.createdAt)}</small>
-            {item.note ? <p>{item.note}</p> : null}
-          </article>
-        ))}
+      <h2>📋 Timeline & Events</h2>
+      <div className="detail-list-block timeline-block">
+        {formattedItems.length === 0 ? (
+          <p className="empty-state">Chưa có sự kiện nào.</p>
+        ) : (
+          formattedItems.map((item, index) => (
+            <article key={`${item.type}-${item.time}-${index}`} className="timeline-item">
+              <div className="timeline-header">
+                <strong>{item.label}</strong>
+                <small>{item.time}</small>
+              </div>
+              {item.note ? <p className="timeline-note">{item.note}</p> : null}
+            </article>
+          ))
+        )}
       </div>
     </section>
   );
@@ -462,21 +509,33 @@ function PaymentPanel({
 }) {
   return (
     <section className="admin-panel">
-      <h2>Payments</h2>
+      <h2>💳 Thanh Toán</h2>
       <div className="detail-list-block">
-        {payments.map((payment) => (
-          <article key={payment.id}>
-            <strong>
-              {payment.provider} / {labelOf(payment.status)}
-            </strong>
-            <small>{formatDateTime(payment.createdAt)}</small>
-            <p>{formatPrice(payment.amount)}</p>
-            {payment.providerSessionId ? <p>{payment.providerSessionId}</p> : null}
-            {payment.provider === 'manual_bank_transfer' && payment.status === 'UNPAID' ? (
-              <button type="button" onClick={() => void onConfirm(payment.id)}>Xác nhận đã nhận chuyển khoản</button>
-            ) : null}
-          </article>
-        ))}
+        {payments.length === 0 ? (
+          <p className="empty-state">Chưa có giao dịch thanh toán.</p>
+        ) : (
+          payments.map((payment) => (
+            <article key={payment.id} className="payment-item">
+              <div className="payment-header">
+                <strong>
+                  {payment.provider === 'manual_bank_transfer' ? '🏦 Chuyển Khoản' : payment.provider}
+                  {' · '}
+                  <span className={`payment-status status-${payment.status.toLowerCase()}`}>
+                    {labelOf(payment.status)}
+                  </span>
+                </strong>
+                <small>{formatDateTime(payment.createdAt)}</small>
+              </div>
+              <p className="payment-amount">{formatPrice(payment.amount)}</p>
+              {payment.providerSessionId ? <p className="payment-ref">Ref: {payment.providerSessionId}</p> : null}
+              {payment.provider === 'manual_bank_transfer' && payment.status === 'UNPAID' ? (
+                <button type="button" className="confirm-payment-btn" onClick={() => void onConfirm(payment.id)}>
+                  ✅ Xác Nhận Đã Nhận Chuyển Khoản
+                </button>
+              ) : null}
+            </article>
+          ))
+        )}
       </div>
     </section>
   );

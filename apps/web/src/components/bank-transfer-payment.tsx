@@ -172,15 +172,17 @@ function PaymentDetails({ payment }: { payment: BankTransferPayment }) {
             id="payment-qr-heading"
           />
           <div className="payment-qr-frame">
-            {details.qrUrl ? (
-              <img src={details.qrUrl} alt={`Mã VietQR thanh toán đơn ${payment.order.orderNumber}`} />
-            ) : (
-              <div className="payment-qr-placeholder" aria-label="Mã QR chưa được cập nhật">
-                <QrIcon />
-                <strong>QR đang được cập nhật</strong>
-                <span>Bạn vẫn có thể chuyển khoản bằng thông tin bên cạnh.</span>
-              </div>
-            )}
+            <img
+              src={details.qrUrl || '/payment/mb-vietqr-nguyen-cao-phi.png'}
+              alt={`Mã VietQR thanh toán đơn ${payment.order.orderNumber}`}
+              onError={(e) => {
+                // Fallback to default QR if image fails to load
+                const img = e.currentTarget;
+                if (img.src !== window.location.origin + '/payment/mb-vietqr-nguyen-cao-phi.png') {
+                  img.src = '/payment/mb-vietqr-nguyen-cao-phi.png';
+                }
+              }}
+            />
           </div>
           <p className="payment-qr-note">
             <InfoIcon />
