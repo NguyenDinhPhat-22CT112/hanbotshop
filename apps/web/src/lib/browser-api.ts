@@ -28,11 +28,16 @@ export class ApiError extends Error {
 }
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}) {
+  // Check if admin cookie exists to set proper scope header
+  const hasAdminCookie = document.cookie.includes('hanbotorder_admin_session=');
+
   const response = await fetch(`${apiUrl}${path}`, {
     ...options,
     credentials: 'include',
     headers: {
       'content-type': 'application/json',
+      // Set admin scope if admin cookie exists (allows admin to use customer web)
+      ...(hasAdminCookie ? { 'x-hanbotorder-session-scope': 'admin' } : {}),
       ...options.headers
     }
   });
@@ -114,10 +119,15 @@ export async function getAddresses() {
   return payload.data;
 }
 
-export async function addCartItem(productId: string, variantId: string | null = null, quantity = 1) {
+export async function addCartItem(
+  productId: string,
+  variantId: string | null = null,
+  quantity = 1,
+  paymentRequirement: 'FULL' | 'DEPOSIT' = 'FULL'
+) {
   return apiFetch<CartResponse & { itemAdded: boolean }>('/cart/items', {
     method: 'POST',
-    body: JSON.stringify({ productId, variantId, quantity })
+    body: JSON.stringify({ productId, variantId, quantity, paymentRequirement })
   });
 }
 

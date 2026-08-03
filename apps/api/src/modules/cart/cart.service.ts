@@ -5,7 +5,7 @@ import type { AddCartItemDto, MergeGuestCartDto, UpdateCartItemDto } from './dto
 
 @Injectable()
 export class CartService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async getCart(userId: string) {
     const cart = await this.ensureCart(userId);
@@ -21,8 +21,13 @@ export class CartService {
     }
 
     const cart = await this.ensureCart(userId);
+
+    // Check if same product+variant combination exists with same payment requirement
     const existingItem = cart.items.find(
-      (item) => item.productId === dto.productId && (item.variantId ?? null) === (dto.variantId ?? null)
+      (item) =>
+        item.productId === dto.productId &&
+        (item.variantId ?? null) === (dto.variantId ?? null) &&
+        item.paymentRequirement === (dto.paymentRequirement ?? 'FULL')
     );
 
     if (existingItem) {
@@ -37,7 +42,8 @@ export class CartService {
         cartId: cart.id,
         productId: dto.productId,
         variantId: dto.variantId ?? null,
-        quantity: dto.quantity
+        quantity: dto.quantity,
+        paymentRequirement: dto.paymentRequirement ?? 'FULL'
       }
     });
 
@@ -236,6 +242,8 @@ export class CartService {
           basePrice: item.product.basePrice?.toString() ?? null,
           compareAtPrice: item.product.compareAtPrice?.toString() ?? null,
           imageUrl: firstImage?.url ?? null,
+          // Use paymentRequirement from CartItem, not from Product
+          paymentRequirement: item.paymentRequirement,
           orderType:
             item.product.category?.placement === 'RESIN'
               || item.product.tags?.some((entry) => entry.tag.slug.toLowerCase() === 'resin')

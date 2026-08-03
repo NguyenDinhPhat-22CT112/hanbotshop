@@ -32,11 +32,11 @@ export function PaymentActionButton({ orderId }: PaymentActionButtonProps) {
     <>
       <div className="payment-action">
         <button className="primary-link payment-action-button" type="button" disabled={isLoading} onClick={() => void startPayment()}>
-          {isLoading ? 'Đang mở thanh toán...' : 'Thanh toán đơn hàng'}
+          💳 {isLoading ? 'Đang mở thanh toán...' : 'Thanh Toán Đơn Hàng'}
         </button>
         {message ? <p className="form-message">{message}</p> : null}
       </div>
-      <PaymentModal paymentId={paymentId} onClose={() => setPaymentId(null)} />
+      <PaymentModal key={paymentId || 'closed'} paymentId={paymentId} onClose={() => setPaymentId(null)} />
     </>
   );
 }

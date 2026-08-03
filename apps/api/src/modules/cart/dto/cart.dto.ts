@@ -3,7 +3,8 @@ import { z } from 'zod';
 export const addCartItemSchema = z.object({
   productId: z.string().min(1),
   variantId: z.string().min(1).optional().nullable(),
-  quantity: z.number().int().positive().max(99)
+  quantity: z.number().int().positive().max(99),
+  paymentRequirement: z.enum(['FULL', 'DEPOSIT']).optional()
 });
 
 export const updateCartItemSchema = z.object({

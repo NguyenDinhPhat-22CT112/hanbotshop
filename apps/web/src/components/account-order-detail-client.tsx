@@ -24,6 +24,17 @@ export function AccountOrderDetailClient({ id }: { id: string }) {
   }, [id]);
 
   async function handleCancelOrder() {
+    // Hiển thị cảnh báo trước khi hủy
+    const confirmed = window.confirm(
+      '⚠️ Cảnh báo: Không hoàn tiền\n\n' +
+      'Theo chính sách của shop, đơn hàng đã thanh toán sẽ KHÔNG được hoàn tiền khi hủy.\n\n' +
+      'Bạn có chắc chắn muốn hủy đơn hàng này không?'
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
     setMessage('Đang hủy đơn hàng...');
 
     try {

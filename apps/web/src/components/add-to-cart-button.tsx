@@ -43,7 +43,7 @@ export function AddToCartButton({
     setMessage('Đang thêm vào giỏ...');
 
     try {
-      const result = await addCartItem(productId, variantId, quantity);
+      const result = await addCartItem(productId, variantId, quantity, paymentRequirement);
       setMessage(result.itemAdded ? 'Đã thêm vào giỏ hàng.' : '');
       onSuccess?.();
       window.dispatchEvent(new CustomEvent('cart-updated'));

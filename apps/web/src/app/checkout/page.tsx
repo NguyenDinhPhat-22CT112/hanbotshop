@@ -1,24 +1,11 @@
 import type { Metadata } from 'next';
-import { Breadcrumb } from '../../components/breadcrumb';
 import { CheckoutForm } from '../../components/checkout-form';
+import '../checkout.css';
 
 export default function CheckoutPage() {
   return (
     <main>
-      <Breadcrumb
-        items={[
-          { label: 'Giỏ hàng', href: '/cart' },
-          { label: 'Thanh toán' }
-        ]}
-      />
-
-      <section className="catalog-header">
-        <p className="eyebrow">Thanh toán</p>
-        <h1>Thông tin giao hàng</h1>
-      </section>
-      <section className="narrow-section">
-        <CheckoutForm />
-      </section>
+      <CheckoutForm />
     </main>
   );
 }

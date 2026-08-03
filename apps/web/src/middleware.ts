@@ -3,18 +3,33 @@ import { NextRequest, NextResponse } from 'next/server';
 const apiUrl =
   process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
 const customerSessionCookieName = 'hanbotorder_session';
+const adminSessionCookieName = 'hanbotorder_admin_session';
 
 export async function middleware(request: NextRequest) {
-  const sessionCookie = request.cookies.get(customerSessionCookieName);
+  // Check for either customer or admin session cookie
+  const customerCookie = request.cookies.get(customerSessionCookieName);
+  const adminCookie = request.cookies.get(adminSessionCookieName);
 
-  if (!sessionCookie?.value) {
+  // Allow access if either cookie exists
+  if (!customerCookie?.value && !adminCookie?.value) {
     return redirectToLogin(request);
   }
 
   try {
+    // Build cookie header with both cookies if available
+    const cookieParts: string[] = [];
+    if (customerCookie?.value) {
+      cookieParts.push(`${customerSessionCookieName}=${encodeURIComponent(customerCookie.value)}`);
+    }
+    if (adminCookie?.value) {
+      cookieParts.push(`${adminSessionCookieName}=${encodeURIComponent(adminCookie.value)}`);
+    }
+
     const response = await fetch(`${apiUrl}/auth/me`, {
       headers: {
-        cookie: `${customerSessionCookieName}=${encodeURIComponent(sessionCookie.value)}`
+        cookie: cookieParts.join('; '),
+        // If admin cookie exists, set scope header to prioritize admin session
+        ...(adminCookie?.value ? { 'x-hanbotorder-session-scope': 'admin' } : {})
       },
       cache: 'no-store'
     });

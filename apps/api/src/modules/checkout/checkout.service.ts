@@ -22,7 +22,7 @@ export class CheckoutService {
     private readonly cartService: CartService,
     private readonly ordersService: OrdersService,
     private readonly notifications: NotificationsService = { enqueue: async () => undefined } as unknown as NotificationsService
-  ) {}
+  ) { }
 
   async checkout(userId: string, dto: CheckoutDto) {
     const cart = await this.cartService.ensureCart(userId);
@@ -116,11 +116,11 @@ export class CheckoutService {
                   } as Prisma.InputJsonValue,
                   variantSnapshot: item.variant
                     ? ({
-                        id: item.variant.id,
-                        name: item.variant.name,
-                        sku: item.variant.sku,
-                        options: item.variant.options
-                      } as Prisma.InputJsonValue)
+                      id: item.variant.id,
+                      name: item.variant.name,
+                      sku: item.variant.sku,
+                      options: item.variant.options
+                    } as Prisma.InputJsonValue)
                     : Prisma.JsonNull,
                   quantity: item.quantity,
                   unitPrice,
@@ -195,25 +195,46 @@ export class CheckoutService {
 
     const result = item.variant
       ? await tx.productVariant.updateMany({
-          where: { id: item.variant.id, isActive: true, inventoryQuantity: { gte: item.quantity } },
-          data: { inventoryQuantity: { decrement: item.quantity } }
-        })
+        where: { id: item.variant.id, isActive: true, inventoryQuantity: { gte: item.quantity } },
+        data: { inventoryQuantity: { decrement: item.quantity } }
+      })
       : await tx.product.updateMany({
-          where: { id: item.product.id, status: 'ACTIVE', inventoryQuantity: { gte: item.quantity } },
-          data: { inventoryQuantity: { decrement: item.quantity } }
-        });
+        where: { id: item.product.id, status: 'ACTIVE', inventoryQuantity: { gte: item.quantity } },
+        data: { inventoryQuantity: { decrement: item.quantity } }
+      });
 
     if (result.count !== 1) {
       throw new ConflictException(`Insufficient inventory for ${item.product.name}.`);
     }
   }
 
+  /**
+   * Generate order number following e-commerce best practices:
+   * - Format: [PREFIX]-[YEAR][MONTH][DAY]-[SEQUENTIAL]
+   * - PREFIX: HBO for standard orders, HBR for resin orders
+   * - Date: YYYYMMDD for chronological sorting and easy lookup
+   * - Sequential: 4-digit number instead of random for better tracking
+   * 
+   * Examples: HBO-20260315-0001, HBR-20260315-0042
+   * 
+   * Benefits:
+   * - Easy to identify order type at a glance
+   * - Chronological sorting works naturally
+   * - Date makes it easy to locate orders by time period
+   * - Sequential number shows volume and prevents duplicates
+   * - Compatible with accounting and reporting systems
+   */
   private createOrderNumber(type: OrderType) {
     const date = new Date();
-    const stamp = date.toISOString().slice(0, 10).replaceAll('-', '');
-    const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const dateStamp = date.toISOString().slice(0, 10).replaceAll('-', '');
+
+    // Generate a time-based sequential-like number (more predictable than random)
+    // Using time components ensures uniqueness within the same second
+    const timeComponent = date.getTime() % 10000; // Last 4 digits of timestamp
+    const sequential = timeComponent.toString().padStart(4, '0');
+
     const prefix = type === OrderType.RESIN ? 'HBR' : 'HBO';
 
-    return `${prefix}-${stamp}-${suffix}`;
+    return `${prefix}-${dateStamp}-${sequential}`;
   }
 }

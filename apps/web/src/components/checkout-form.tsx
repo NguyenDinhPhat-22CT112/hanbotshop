@@ -3,8 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { checkout, createPaymentSession, getAddresses, getCart, type Address } from '../lib/browser-api';
-import { calculateDepositRequired, formatVnd } from '../lib/checkout-utils';
+import { calculateDepositRequired } from '../lib/checkout-utils';
 import { PaymentModal } from './bank-transfer-payment';
+import { CheckoutProgress } from './checkout/checkout-progress';
+import { TrustIndicators } from './checkout/trust-indicators';
+import { ShippingForm } from './checkout/shipping-form';
+import { OrderSummary } from './checkout/order-summary';
 
 type CartState = Awaited<ReturnType<typeof getCart>>;
 
@@ -132,94 +136,33 @@ export function CheckoutForm() {
 
   return (
     <>
-      <div className="checkout-layout">
-        <form className="request-form checkout-address-form" action={submit} aria-busy={isSubmitting || isLoading}>
-      <header className="checkout-section-heading">
-        <h2>Địa chỉ nhận hàng</h2>
-        <a href="/account/addresses">Quản lý địa chỉ</a>
-      </header>
-      {addresses.length ? (
-        <label>
-          Địa chỉ đã lưu
-          <select value={selectedAddressId} onChange={(event) => selectAddress(event.target.value)}>
-            <option value="">Nhập địa chỉ mới</option>
-            {addresses.map((address) => (
-              <option value={address.id} key={address.id}>
-                {address.recipient} - {address.line1}
-                {address.isDefault ? ' (mặc định)' : ''}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
-      <label>
-        Người nhận
-        <input name="recipientName" value={fields.recipientName} onChange={(event) => updateField('recipientName', event.target.value)} autoComplete="name" minLength={2} required />
-      </label>
-      <label>
-        Số điện thoại
-        <input name="recipientPhone" value={fields.recipientPhone} onChange={(event) => updateField('recipientPhone', event.target.value)} autoComplete="tel" inputMode="tel" pattern="[0-9+() .-]{6,20}" required />
-      </label>
-      <label>
-        Địa chỉ
-        <input name="line1" value={fields.line1} onChange={(event) => updateField('line1', event.target.value)} autoComplete="street-address" minLength={5} required />
-      </label>
-      <label>
-        Thành phố
-        <input name="city" value={fields.city} onChange={(event) => updateField('city', event.target.value)} autoComplete="address-level2" required />
-      </label>
-      <label>
-        Tỉnh/Thành
-        <input name="province" value={fields.province} onChange={(event) => updateField('province', event.target.value)} autoComplete="address-level1" />
-      </label>
-      <label className="checkout-policy-consent">
-        <input name="acceptedPolicies" type="checkbox" required />
-        <span>
-          Tôi đã kiểm tra thông tin và đồng ý với <a href="/chinh-sach/mua-hang">chính sách mua hàng</a>,{' '}
-          <a href="/chinh-sach/thanh-toan">thanh toán</a> và <a href="/chinh-sach/doi-tra">hủy/đổi trả</a>.
-        </span>
-      </label>
-      <button type="submit" disabled={isSubmitting || isLoading || !cart?.items.length}>
-        {isSubmitting ? 'Đang tạo đơn...' : 'Xác nhận tạo đơn hàng'}
-      </button>
-      {message ? <p className="form-message" role="status" aria-live="polite">{message}</p> : null}
-        </form>
+      <div className="checkout-container">
+        <CheckoutProgress currentStep="shipping" />
+        <TrustIndicators />
 
-        <aside className="checkout-summary" aria-labelledby="checkout-summary-title">
-        <header className="checkout-section-heading">
-          <h2 id="checkout-summary-title">Đơn hàng của bạn</h2>
-          <a href="/cart">Sửa giỏ hàng</a>
-        </header>
-        {isLoading ? <p role="status">Đang tải giỏ hàng...</p> : null}
-        {!isLoading && !cart?.items.length ? (
-          <div className="checkout-empty" role="alert">
-            <p>Giỏ hàng đang trống.</p>
-            <a href="/san-pham">Tiếp tục mua hàng</a>
-          </div>
-        ) : null}
-        <div className="checkout-item-list">
-          {cart?.items.map((item) => (
-            <article className="checkout-item" key={item.id}>
-              <div>
-                <strong>{item.product.name}</strong>
-                <span>
-                  {item.product.orderType === 'RESIN' ? 'Đơn Resin' : 'Đơn Order'} ·{' '}
-                  {item.variant?.name ? `${item.variant.name} · ` : ''}Số lượng: {item.quantity}
-                </span>
-                {item.product.paymentRequirement === 'DEPOSIT' ? <small>Cọc {item.product.depositPercent}%</small> : <small>Thanh toán đủ</small>}
-              </div>
-              <strong>{formatVnd(item.totalPrice)}</strong>
-            </article>
-          ))}
+        <div className="checkout-layout">
+          <ShippingForm
+            fields={fields}
+            addresses={addresses}
+            selectedAddressId={selectedAddressId}
+            isLoading={isLoading}
+            isSubmitting={isSubmitting}
+            hasItems={!!cart?.items.length}
+            message={message}
+            onFieldUpdate={updateField}
+            onAddressSelect={selectAddress}
+            onSubmit={submit}
+          />
+
+          <OrderSummary
+            items={cart?.items ?? []}
+            subtotal={cart?.subtotal ?? '0'}
+            depositRequired={depositRequired}
+            isLoading={isLoading}
+          />
         </div>
-        <dl className="checkout-totals">
-          <div><dt>Tạm tính</dt><dd>{formatVnd(cart?.subtotal ?? '0')}</dd></div>
-          <div><dt>Phí giao hàng</dt><dd>Shop xác nhận</dd></div>
-          <div><dt>Cần thanh toán trước dự kiến</dt><dd>{formatVnd(String(depositRequired))}</dd></div>
-        </dl>
-        <p className="checkout-summary-note">Phí giao hàng do hệ thống của shop xác định và sẽ được ghi nhận trong đơn. Shop sẽ xác nhận lại tồn kho, số tiền cọc và lịch giao.</p>
-        </aside>
       </div>
+
       <PaymentModal
         paymentId={paymentId}
         onClose={() => {
