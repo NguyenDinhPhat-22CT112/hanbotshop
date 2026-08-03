@@ -18,6 +18,7 @@ export type GuestCartItemInput = {
   variantId?: string | null;
   quantity?: number;
   unitPrice: string;
+  paymentRequirement: 'FULL' | 'DEPOSIT';
   product: {
     name: string;
     imageUrl?: string | null;
@@ -37,7 +38,8 @@ export function addGuestCartItem(input: GuestCartItemInput) {
   const storedCart = readStoredCart();
   const items = storedCart?.items ?? [];
   const variantId = input.variantId ?? null;
-  const id = guestItemId(input.productId, variantId);
+  const paymentRequirement = input.paymentRequirement ?? 'FULL';
+  const id = guestItemId(input.productId, variantId, paymentRequirement);
   const existingItem = items.find((item) => item.id === id);
 
   if (existingItem) {
@@ -58,6 +60,7 @@ export function addGuestCartItem(input: GuestCartItemInput) {
     quantity,
     unitPrice,
     totalPrice: multiplyPrice(unitPrice, quantity),
+    paymentRequirement,
     product: input.product,
     variant: input.variant ?? null
   };
@@ -75,10 +78,10 @@ export function updateGuestCartItem(itemId: string, quantity: number) {
   const nextItems = items.map((item) =>
     item.id === itemId
       ? {
-          ...item,
-          quantity: nextQuantity,
-          totalPrice: multiplyPrice(item.unitPrice, nextQuantity)
-        }
+        ...item,
+        quantity: nextQuantity,
+        totalPrice: multiplyPrice(item.unitPrice, nextQuantity)
+      }
       : item
   );
 
@@ -119,7 +122,8 @@ export async function mergeGuestCartAfterAuthentication() {
     guestCart.items.map((item) => ({
       productId: item.productId,
       variantId: item.variantId,
-      quantity: item.quantity
+      quantity: item.quantity,
+      paymentRequirement: item.paymentRequirement
     }))
   );
 
@@ -205,6 +209,7 @@ function isGuestCartItem(value: unknown): value is GuestCartItem {
     item.quantity >= 1 &&
     item.quantity <= 99 &&
     typeof item.unitPrice === 'string' &&
+    (item.paymentRequirement === 'FULL' || item.paymentRequirement === 'DEPOSIT') &&
     typeof item.product?.name === 'string'
   );
 }
@@ -225,8 +230,8 @@ function multiplyPrice(unitPrice: string, quantity: number) {
   return (Number(unitPrice || 0) * quantity).toString();
 }
 
-function guestItemId(productId: string, variantId: string | null) {
-  return `guest:${productId}:${variantId ?? 'base'}`;
+function guestItemId(productId: string, variantId: string | null, paymentRequirement: 'FULL' | 'DEPOSIT' = 'FULL') {
+  return `guest:${productId}:${variantId ?? 'base'}:${paymentRequirement}`;
 }
 
 function dispatchCartUpdated() {

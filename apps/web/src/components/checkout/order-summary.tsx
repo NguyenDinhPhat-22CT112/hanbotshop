@@ -72,7 +72,7 @@ export function OrderSummary({ items, subtotal, depositRequired, isLoading }: Or
                                 <span>SL: {item.quantity}</span>
                             </div>
 
-                            {item.product.paymentRequirement === 'DEPOSIT' ? (
+                            {item.paymentRequirement === 'DEPOSIT' ? (
                                 <span className="checkout-item-badge checkout-item-badge--deposit">
                                     Cọc {item.product.depositPercent}%
                                 </span>

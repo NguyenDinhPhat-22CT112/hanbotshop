@@ -138,6 +138,7 @@ export type CartItem = {
   quantity: number;
   unitPrice: string;
   totalPrice: string;
+  paymentRequirement: 'FULL' | 'DEPOSIT';
   product: {
     name: string;
     imageUrl?: string | null;

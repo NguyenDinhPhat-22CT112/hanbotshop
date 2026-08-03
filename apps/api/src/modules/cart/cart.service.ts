@@ -86,7 +86,8 @@ export class CartService {
           cartId: cart.id,
           productId: item.productId,
           variantId: item.variantId ?? null,
-          quantity: item.quantity
+          quantity: item.quantity,
+          paymentRequirement: item.paymentRequirement ?? 'FULL'
         }
       });
       existingKeys.add(key);

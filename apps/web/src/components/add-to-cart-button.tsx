@@ -54,6 +54,7 @@ export function AddToCartButton({
           variantId,
           quantity,
           unitPrice,
+          paymentRequirement,
           product: {
             name: productName,
             imageUrl: productImageUrl,
