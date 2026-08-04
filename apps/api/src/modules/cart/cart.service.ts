@@ -131,14 +131,8 @@ export class CartService {
   }
 
   getItemUnitPrice(item: Prisma.CartItemGetPayload<{ include: ReturnType<CartService['cartItemInclude']> }>) {
-    const fullPrice = item.variant?.price ?? item.product.basePrice ?? new Prisma.Decimal(0);
-
-    // If payment requirement is DEPOSIT, use compareAtPrice (deposit price) instead
-    if (item.paymentRequirement === 'DEPOSIT' && item.product.compareAtPrice) {
-      return item.product.compareAtPrice;
-    }
-
-    return fullPrice;
+    // Always return the full price - frontend will calculate deposit using compareAtPrice
+    return item.variant?.price ?? item.product.basePrice ?? new Prisma.Decimal(0);
   }
 
   cartItemInclude() {
@@ -263,7 +257,24 @@ export class CartService {
         variant: item.variant ? { ...item.variant, price: item.variant.price?.toString() ?? null } : null
       };
     });
-    const subtotal = items.reduce((sum, item) => sum.plus(item.totalPrice), new Prisma.Decimal(0));
+
+    // Calculate subtotal based on actual amount to pay (considering deposits)
+    const subtotal = items.reduce((sum, item) => {
+      const itemTotal = new Prisma.Decimal(item.totalPrice);
+
+      // If payment requirement is DEPOSIT and compareAtPrice exists, use deposit price
+      if (item.paymentRequirement === 'DEPOSIT' && item.product.compareAtPrice) {
+        const depositPrice = new Prisma.Decimal(item.product.compareAtPrice);
+        const fullPrice = new Prisma.Decimal(item.unitPrice);
+
+        // Only use deposit price if it's valid and less than full price
+        if (depositPrice.gt(0) && depositPrice.lt(fullPrice)) {
+          return sum.plus(depositPrice.mul(item.quantity));
+        }
+      }
+
+      return sum.plus(itemTotal);
+    }, new Prisma.Decimal(0));
 
     return {
       ...cart,
