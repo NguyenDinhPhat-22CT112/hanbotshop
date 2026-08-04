@@ -131,7 +131,14 @@ export class CartService {
   }
 
   getItemUnitPrice(item: Prisma.CartItemGetPayload<{ include: ReturnType<CartService['cartItemInclude']> }>) {
-    return item.variant?.price ?? item.product.basePrice ?? new Prisma.Decimal(0);
+    const fullPrice = item.variant?.price ?? item.product.basePrice ?? new Prisma.Decimal(0);
+
+    // If payment requirement is DEPOSIT, use compareAtPrice (deposit price) instead
+    if (item.paymentRequirement === 'DEPOSIT' && item.product.compareAtPrice) {
+      return item.product.compareAtPrice;
+    }
+
+    return fullPrice;
   }
 
   cartItemInclude() {

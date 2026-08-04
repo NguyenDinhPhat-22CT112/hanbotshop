@@ -111,8 +111,11 @@ export function CheckoutForm() {
           countryCode: 'VN'
         }
       });
-      const orderPurchase = result.orders.find((order) => order.type === 'ORDER');
+
       const createdNumbers = result.orders.map((order) => order.orderNumber).join(', ');
+
+      // Prioritize ORDER type first (pre-order products with deposits)
+      const orderPurchase = result.orders.find((order) => order.type === 'ORDER');
 
       if (orderPurchase) {
         setMessage(`Đã tách và tạo đơn: ${createdNumbers}. Bảng thanh toán tiền cọc đã sẵn sàng.`);
@@ -122,12 +125,25 @@ export function CheckoutForm() {
         return;
       }
 
+      // Handle RESIN orders - check if deposit payment is required
       const resinOrder = result.orders[0];
       if (!resinOrder) {
         throw new Error('Hệ thống chưa trả về đơn hàng vừa tạo.');
       }
 
-      setMessage(`Đã tạo đơn Resin: ${resinOrder.orderNumber}. Đang chuyển sang chi tiết đơn...`);
+      // Check if any items in the cart require deposit payment
+      const hasDepositItems = cart?.items.some(item => item.paymentRequirement === 'DEPOSIT') ?? false;
+
+      if (hasDepositItems) {
+        setMessage(`Đã tạo đơn: ${resinOrder.orderNumber}. Bảng thanh toán tiền cọc đã sẵn sàng.`);
+        const paymentSession = await createPaymentSession(resinOrder.id);
+        setCreatedOrderId(resinOrder.id);
+        setPaymentId(paymentSession.payment.id);
+        return;
+      }
+
+      // No deposit required, redirect to order detail
+      setMessage(`Đã tạo đơn: ${resinOrder.orderNumber}. Đang chuyển sang chi tiết đơn...`);
       router.push(`/account/orders/${encodeURIComponent(resinOrder.id)}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Không tạo được đơn hàng.');
