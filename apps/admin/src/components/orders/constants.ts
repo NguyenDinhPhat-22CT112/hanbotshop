@@ -53,7 +53,6 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; border: s
     // Final states
     COMPLETED: { bg: '#D1FAE5', text: '#065F46', border: '#A7F3D0' },
     CANCELLED: { bg: '#FEE2E2', text: '#991B1B', border: '#FECACA' },
-    REFUNDED: { bg: '#E9D5FF', text: '#6B21A8', border: '#D8B4FE' },
     BLOCKED: { bg: '#FEE2E2', text: '#991B1B', border: '#FECACA' },
 
     // Payment statuses
@@ -90,8 +89,6 @@ export const STATUS_LABELS: Record<string, string> = {
     // Payment
     UNPAID: 'Chưa thanh toán',
     PARTIALLY_PAID: 'Thanh toán một phần',
-    DEPOSIT_PAID: 'Đã thanh toán cọc',
-    REFUNDED: 'Đã hoàn tiền'
 };
 
 export const RESIN_TIMELINE_STAGES = [

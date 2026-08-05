@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';import {
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'; import {
   AuditAction,
   NotificationType,
   OrderEventType,
@@ -54,7 +54,7 @@ export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService = { enqueue: async () => undefined } as unknown as NotificationsService
-  ) {}
+  ) { }
 
   async listOrders(actor: Actor, query: OrderListQueryDto) {
     const where: Prisma.OrderWhereInput = {
@@ -64,12 +64,12 @@ export class OrdersService {
       paymentStatus: query.paymentStatus,
       OR: query.q
         ? [
-            { orderNumber: { contains: query.q, mode: 'insensitive' } },
-            { recipientName: { contains: query.q, mode: 'insensitive' } },
-            { recipientPhone: { contains: query.q, mode: 'insensitive' } },
-            { user: { email: { contains: query.q, mode: 'insensitive' } } },
-            { user: { name: { contains: query.q, mode: 'insensitive' } } }
-          ]
+          { orderNumber: { contains: query.q, mode: 'insensitive' } },
+          { recipientName: { contains: query.q, mode: 'insensitive' } },
+          { recipientPhone: { contains: query.q, mode: 'insensitive' } },
+          { user: { email: { contains: query.q, mode: 'insensitive' } } },
+          { user: { name: { contains: query.q, mode: 'insensitive' } } }
+        ]
         : undefined
     };
     const skip = (query.page - 1) * query.pageSize;
@@ -555,7 +555,7 @@ export class OrdersService {
     paymentStatus: PaymentStatus
   ) {
     if (paymentStatus === PaymentStatus.PAID || paymentStatus === PaymentStatus.PARTIALLY_PAID) {
-      throw new ForbiddenException('Paid orders cannot be refunded or cancelled. Contact Admin to transfer the order.');
+      throw new ForbiddenException('Paid orders cannot be cancelled. Contact Admin to transfer the order.');
     }
 
     if (actor.role !== UserRole.ADMIN) {

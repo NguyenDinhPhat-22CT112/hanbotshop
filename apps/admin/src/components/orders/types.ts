@@ -30,9 +30,7 @@ export type ResinStatus =
 export type PaymentStatus =
     | 'UNPAID'
     | 'PARTIALLY_PAID'
-    | 'DEPOSIT_PAID'
-    | 'PAID'
-    | 'REFUNDED';
+    | 'PAID';
 
 export interface BaseOrder {
     id: string;
