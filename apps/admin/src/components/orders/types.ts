@@ -93,4 +93,5 @@ export interface OrderFilters {
     dateTo: string;
     page: number;
     pageSize: number;
+    [key: string]: string | number | undefined;
 }
