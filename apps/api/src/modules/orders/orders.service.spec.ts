@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { OrderStatus, OrderType, PaymentStatus, Prisma, UserRole } from '@prisma/client';
 import assert from 'node:assert/strict';
 import test from 'node:test';
@@ -141,5 +141,70 @@ test('order cannot be completed while COD balance remains', async () => {
       { status: OrderStatus.COMPLETED }
     ),
     BadRequestException
+  );
+});
+
+test('paid orders cannot be deleted', async () => {
+  const paid = { ...order(OrderStatus.COMPLETED, PaymentStatus.PAID), orderNumber: 'HBO-PAID' };
+  const prisma = {
+    order: { findMany: async () => [paid] },
+    $transaction: async () => {
+      throw new Error('transaction should not run for paid orders');
+    }
+  };
+  const service = new OrdersService(prisma as never);
+
+  await assert.rejects(
+    () => service.deleteOrders({ id: 'admin-1', role: UserRole.ADMIN }, [paid.id]),
+    BadRequestException
+  );
+});
+
+test('admin can delete unpaid orders and their related records', async () => {
+  const current = { ...order(OrderStatus.WAITING_DEPOSIT, PaymentStatus.UNPAID), paidAmount: new Prisma.Decimal(0) };
+  const deleted: string[] = [];
+  const tx = {
+    productionJob: {
+      findMany: async () => [],
+      deleteMany: async () => ({ count: 0 })
+    },
+    productionEvent: { deleteMany: async () => ({ count: 0 }) },
+    internalNote: { deleteMany: async () => ({ count: 0 }) },
+    payment: {
+      findMany: async () => [],
+      deleteMany: async () => ({ count: 0 })
+    },
+    paymentEvent: { deleteMany: async () => ({ count: 0 }) },
+    orderEvent: { deleteMany: async () => ({ count: 0 }) },
+    orderNote: { deleteMany: async () => ({ count: 0 }) },
+    orderItem: { deleteMany: async () => ({ count: 0 }) },
+    emailOutbox: { updateMany: async () => ({ count: 0 }) },
+    auditLog: { create: async () => ({}) },
+    order: { deleteMany: async ({ where }: { where: { id: { in: string[] } } }) => { deleted.push(...where.id.in); return { count: where.id.in.length }; } }
+  };
+  const prisma = {
+    order: { findMany: async () => [current] },
+    $transaction: async (handler: (client: typeof tx) => unknown) => handler(tx)
+  };
+  const service = new OrdersService(prisma as never);
+
+  const result = await service.deleteOrders({ id: 'admin-1', role: UserRole.ADMIN }, [current.id]);
+
+  assert.deepEqual(result, { deleted: 1 });
+  assert.deepEqual(deleted, [current.id]);
+});
+
+test('missing orders cannot be deleted', async () => {
+  const prisma = {
+    order: { findMany: async () => [] },
+    $transaction: async () => {
+      throw new Error('transaction should not run for missing orders');
+    }
+  };
+  const service = new OrdersService(prisma as never);
+
+  await assert.rejects(
+    () => service.deleteOrders({ id: 'admin-1', role: UserRole.ADMIN }, ['missing-1']),
+    NotFoundException
   );
 });

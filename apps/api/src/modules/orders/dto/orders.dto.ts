@@ -32,9 +32,14 @@ export const orderNoteSchema = z.object({
   body: z.string().trim().min(1).max(2000)
 });
 
+export const orderBulkDeleteSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(100)
+});
+
 export type OrderListQueryDto = z.infer<typeof orderListQuerySchema>;
 export type UpdateOrderStatusDto = z.infer<typeof updateOrderStatusSchema>;
 export type UpdateOrderPaymentDto = z.infer<typeof updateOrderPaymentSchema>;
 export type SecondPaymentRequestDto = z.infer<typeof secondPaymentRequestSchema>;
 export type TrackingDto = z.infer<typeof trackingSchema>;
 export type OrderNoteDto = z.infer<typeof orderNoteSchema>;
+export type OrderBulkDeleteDto = z.infer<typeof orderBulkDeleteSchema>;

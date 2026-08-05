@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { OrderNoteType, UserRole } from '@prisma/client';
 import { parseZodSchema } from '../../common/utils/parse-zod-schema';
@@ -8,6 +8,7 @@ import { AuthGuard } from '../identity/guards/auth.guard';
 import { RolesGuard } from '../identity/guards/roles.guard';
 import type { AuthenticatedUser } from '../identity/types/authenticated-user';
 import {
+  orderBulkDeleteSchema,
   orderListQuerySchema,
   orderNoteSchema,
   secondPaymentRequestSchema,
@@ -169,6 +170,42 @@ export class OrdersController {
   @ApiResponse({ status: 404, description: 'Order not found' })
   cancelOrder(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.ordersService.cancelOrder(user, id);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Delete order', description: 'Permanently delete an order and its related records (Admin only). Paid orders cannot be deleted.' })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 200, description: 'Order deleted successfully' })
+  @ApiResponse({ status: 400, description: 'Order has been paid and cannot be deleted' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  deleteOrder(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.ordersService.deleteOrders(user, [id]);
+  }
+
+  @Post('bulk-delete')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(AuthGuard, RolesGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Bulk delete orders', description: 'Permanently delete multiple orders and their related records (Admin only). Paid orders cannot be deleted.' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['ids'],
+      properties: {
+        ids: { type: 'array', items: { type: 'string' }, description: 'Order IDs to delete (max 100)' }
+      }
+    }
+  })
+  @ApiResponse({ status: 200, description: 'Orders deleted successfully' })
+  @ApiResponse({ status: 400, description: 'One or more orders have been paid and cannot be deleted' })
+  @ApiResponse({ status: 404, description: 'One or more orders not found' })
+  bulkDeleteOrders(@CurrentUser() user: AuthenticatedUser, @Body() body: unknown) {
+    const dto = parseZodSchema(orderBulkDeleteSchema, body);
+
+    return this.ordersService.deleteOrders(user, dto.ids);
   }
 
   @Get(':id/notes')

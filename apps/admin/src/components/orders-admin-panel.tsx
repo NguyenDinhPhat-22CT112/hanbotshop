@@ -82,6 +82,8 @@ export function OrdersAdminPanel() {
   const [filters, setFilters] = useState<Filters>(defaultFilters);
   const [meta, setMeta] = useState<ListMeta | null>(null);
   const [message, setMessage] = useState('Đang tải đơn hàng...');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
 
   async function loadOrders(nextFilters = filters) {
     if (!getAdminToken()) {
@@ -138,6 +140,83 @@ export function OrdersAdminPanel() {
       setMessage(error instanceof Error ? error.message : 'Không cập nhật được đơn hàng.');
     }
   }
+
+  function toggleSelected(orderId: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+      }
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds((current) => {
+      if (current.size === orders.length && orders.length > 0) {
+        return new Set();
+      }
+      return new Set(orders.map((order) => order.id));
+    });
+  }
+
+  async function deleteSelected() {
+    const ids = [...selectedIds];
+
+    if (!ids.length) {
+      return;
+    }
+
+    if (!window.confirm(`Xóa vĩnh viễn ${ids.length} đơn hàng đã chọn?\n\nĐơn hàng và toàn bộ dữ liệu liên quan (ghi chú, sự kiện, thanh toán) sẽ bị xóa và không thể khôi phục.`)) {
+      return;
+    }
+
+    setDeleting(true);
+    setMessage('Đang xóa đơn hàng...');
+
+    try {
+      await adminFetch('/orders/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) });
+      setSelectedIds(new Set());
+      await loadOrders();
+      window.dispatchEvent(new Event('admin:data-changed'));
+      setMessage(`Đã xóa ${ids.length} đơn hàng.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Không xóa được đơn hàng.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function deleteOrder(orderId: string) {
+    const order = orders.find((entry) => entry.id === orderId);
+
+    if (!window.confirm(`Xóa vĩnh viễn đơn hàng “${order?.orderNumber ?? orderId}”?\n\nĐơn hàng và toàn bộ dữ liệu liên quan sẽ bị xóa và không thể khôi phục.`)) {
+      return;
+    }
+
+    setDeleting(true);
+    setMessage('Đang xóa đơn hàng...');
+
+    try {
+      await adminFetch(`/orders/${orderId}`, { method: 'DELETE' });
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        next.delete(orderId);
+        return next;
+      });
+      await loadOrders();
+      window.dispatchEvent(new Event('admin:data-changed'));
+      setMessage('Đã xóa đơn hàng.');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'Không xóa được đơn hàng.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  const allSelected = orders.length > 0 && selectedIds.size === orders.length;
 
   return (
     <div className="detail-stack">
@@ -198,8 +277,28 @@ export function OrdersAdminPanel() {
         </form>
       </section>
 
+      {selectedIds.size > 0 ? (
+        <div className="bulk-bar">
+          <span>Đã chọn {selectedIds.size} đơn hàng</span>
+          <button type="button" className="secondary-button" onClick={() => setSelectedIds(new Set())}>
+            Bỏ chọn
+          </button>
+          <button type="button" className="danger-button" disabled={deleting} onClick={() => void deleteSelected()}>
+            {deleting ? 'Đang xóa...' : 'Xóa đã chọn'}
+          </button>
+        </div>
+      ) : null}
+
       <section className="table-panel">
         <div className="table-row order-row table-head">
+          <span className="select-cell">
+            <input
+              type="checkbox"
+              aria-label="Chọn tất cả đơn hàng trên trang"
+              checked={allSelected}
+              onChange={toggleSelectAll}
+            />
+          </span>
           <span>Đơn hàng</span>
           <span>Khách hàng</span>
           <span>Trạng thái</span>
@@ -210,6 +309,14 @@ export function OrdersAdminPanel() {
         </div>
         {orders.map((order) => (
           <form className="table-row order-row order-manage-row" action={(formData) => void updateOrder(order.id, formData)} key={order.id}>
+            <span className="select-cell">
+              <input
+                type="checkbox"
+                aria-label={`Chọn đơn ${order.orderNumber}`}
+                checked={selectedIds.has(order.id)}
+                onChange={() => toggleSelected(order.id)}
+              />
+            </span>
             <strong>
               <a href={`/orders/${encodeURIComponent(order.id)}`}>{order.orderNumber}</a>
               <small>{order.type === 'RESIN' ? 'Đơn Resin' : 'Đơn Order'} · {order.id}</small>
@@ -231,7 +338,12 @@ export function OrdersAdminPanel() {
               <input name="trackingNumber" defaultValue={order.trackingNumber ?? ''} placeholder="Mã tracking" />
             </div>
             <span>{formatPrice(order.total)}</span>
-            <button type="submit">Lưu</button>
+            <div className="row-cell-actions">
+              <button type="submit">Lưu</button>
+              <button type="button" className="danger-button" disabled={deleting} onClick={() => void deleteOrder(order.id)}>
+                Xóa
+              </button>
+            </div>
           </form>
         ))}
         {message ? <p className="admin-message table-message">{message}</p> : null}

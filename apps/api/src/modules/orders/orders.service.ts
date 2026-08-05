@@ -1,5 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import {
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';import {
   AuditAction,
   NotificationType,
   OrderEventType,
@@ -421,6 +420,77 @@ export class OrdersService {
     });
 
     return note;
+  }
+
+  async deleteOrders(actor: Actor, ids: string[]) {
+    const orders = await this.prisma.order.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        orderNumber: true,
+        paymentStatus: true,
+        paidAmount: true
+      }
+    });
+
+    if (orders.length !== ids.length) {
+      const found = new Set(orders.map((order) => order.id));
+      const missing = ids.filter((id) => !found.has(id)).slice(0, 3).join(', ');
+      throw new NotFoundException(`Không tìm thấy đơn hàng: ${missing}.`);
+    }
+
+    const paidOrders = orders.filter(
+      (order) => order.paidAmount.greaterThan(0) || order.paymentStatus === PaymentStatus.PAID || order.paymentStatus === PaymentStatus.PARTIALLY_PAID
+    );
+
+    if (paidOrders.length > 0) {
+      throw new BadRequestException(
+        `Không thể xóa đơn hàng đã thanh toán: ${paidOrders.map((order) => order.orderNumber).join(', ')}. Hãy dùng trạng thái CANCELLED/BLOCKED.`
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const productionJobs = await tx.productionJob.findMany({
+        where: { orderId: { in: ids } },
+        select: { id: true }
+      });
+      const productionJobIds = productionJobs.map((job) => job.id);
+
+      await tx.productionEvent.deleteMany({ where: { productionJobId: { in: productionJobIds } } });
+      await tx.internalNote.deleteMany({ where: { productionJobId: { in: productionJobIds } } });
+      await tx.productionJob.deleteMany({ where: { orderId: { in: ids } } });
+
+      const payments = await tx.payment.findMany({
+        where: { orderId: { in: ids } },
+        select: { id: true }
+      });
+      const paymentIds = payments.map((payment) => payment.id);
+
+      await tx.paymentEvent.deleteMany({ where: { paymentId: { in: paymentIds } } });
+      await tx.payment.deleteMany({ where: { orderId: { in: ids } } });
+
+      await tx.orderEvent.deleteMany({ where: { orderId: { in: ids } } });
+      await tx.orderNote.deleteMany({ where: { orderId: { in: ids } } });
+      await tx.orderItem.deleteMany({ where: { orderId: { in: ids } } });
+
+      await tx.emailOutbox.updateMany({ where: { orderId: { in: ids } }, data: { orderId: null } });
+
+      for (const order of orders) {
+        await tx.auditLog.create({
+          data: {
+            actorId: actor.id,
+            action: AuditAction.DELETE,
+            resourceType: 'Order',
+            resourceId: order.id,
+            before: { orderNumber: order.orderNumber, status: order.paymentStatus }
+          }
+        });
+      }
+
+      await tx.order.deleteMany({ where: { id: { in: ids } } });
+    });
+
+    return { deleted: orders.length };
   }
 
   async findOrderOrThrow(id: string) {
