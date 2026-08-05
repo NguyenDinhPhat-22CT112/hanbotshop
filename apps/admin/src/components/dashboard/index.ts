@@ -1,0 +1,10 @@
+export { DashboardHeader } from './dashboard-header';
+export { QuickStats } from './quick-stats';
+export { QuickActions } from './quick-actions';
+export { OrderOverview } from './order-overview';
+export { ProductionOverview } from './production-overview';
+export { RecentOrders } from './recent-orders';
+export { RecentActivities } from './recent-activities';
+export { NotificationsWidget } from './notifications-widget';
+export { SystemHealth } from './system-health';
+export { RevenueWidget } from './revenue-widget';

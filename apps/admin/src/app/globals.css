@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+@import './dashboard.css';
+
 :root {
   color: #15171a;
   background: #f4f6f8;
@@ -891,14 +893,14 @@ h1 {
 
 /* Refined admin design system */
 .admin-sidebar {
-  width: 260px;
-  padding: 24px 16px;
-  gap: 12px;
-  background: linear-gradient(180deg, #171a20, #101217);
+  width: 280px;
+  padding: 24px 18px;
+  gap: 16px;
+  background: linear-gradient(180deg, #0f172a, #1e293b);
 }
 
 .admin-app-layout {
-  padding-left: 260px;
+  padding-left: 280px;
 }
 
 .admin-brand {
@@ -941,32 +943,45 @@ h1 {
 }
 
 .admin-sidebar nav a {
-  gap: 12px;
-  min-height: 46px;
-  border-radius: 10px;
-  padding: 0 12px;
-  color: #aeb5c0;
-  font-weight: 650;
+  gap: 14px;
+  min-height: 48px;
+  border-radius: 12px;
+  padding: 0 14px;
+  color: #cbd5e1;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
 }
 
 .admin-sidebar nav a svg {
-  width: 19px;
-  height: 19px;
+  width: 20px;
+  height: 20px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+  transition: transform 0.2s ease;
 }
 
 .admin-sidebar nav a:hover {
-  background: rgba(255, 255, 255, .06);
+  background: rgba(255, 255, 255, .08);
+  color: #f1f5f9;
+}
+
+.admin-sidebar nav a:hover svg {
+  transform: translateX(2px);
 }
 
 .admin-sidebar nav a[aria-current="page"] {
-  background: linear-gradient(90deg, rgba(214, 56, 47, .22), rgba(214, 56, 47, .08));
-  color: #fff;
-  box-shadow: inset 3px 0 #d6382f;
+  background: linear-gradient(90deg, rgba(214, 56, 47, .15), rgba(214, 56, 47, .05));
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 #d6382f;
+}
+
+.admin-sidebar nav a[aria-current="page"] svg {
+  color: #f87171;
 }
 
 .admin-session {

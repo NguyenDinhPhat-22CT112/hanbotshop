@@ -45,6 +45,9 @@ importers:
       '@hanbotorder/types':
         specifier: workspace:*
         version: link:../../packages/types
+      lucide-react:
+        specifier: ^1.28.0
+        version: 1.28.0(react@18.3.1)
       next:
         specifier: ^14.2.16
         version: 14.2.35(@playwright/test@1.55.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -1806,6 +1809,11 @@ packages:
 
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
+
+  lucide-react@1.28.0:
+    resolution: {integrity: sha512-fARAFJULsGuDDydjp6+6blekG/sBIM29TerzLjc9bQUKAcEfrSc4ZQKb25KRz4OMKd87cZTb5dgq0w/T6KufVg==}
+    peerDependencies:
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
   magic-string@0.30.8:
     resolution: {integrity: sha512-ISQTe55T2ao7XtlAStud6qwYPZjE4GK1S/BeVPus4jrq6JuOnQ00YKQC581RWhR122W7msZV263KzVeLoqidyQ==}
@@ -4525,6 +4533,10 @@ snapshots:
       js-tokens: 4.0.0
 
   lru-cache@10.4.3: {}
+
+  lucide-react@1.28.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
 
   magic-string@0.30.8:
     dependencies:
