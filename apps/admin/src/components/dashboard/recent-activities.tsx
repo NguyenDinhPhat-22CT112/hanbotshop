@@ -1,6 +1,18 @@
 'use client';
 
-import { Clock, CheckCircle2, AlertCircle, DollarSign, Package } from 'lucide-react';
+import { Clock, CheckCircle2, AlertCircle, DollarSign, Package, ShoppingCart } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { adminFetch, getAdminToken } from '../../lib/browser-api';
+
+type AuditLog = {
+    id: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    details?: string;
+    createdAt: string;
+    userId?: string;
+};
 
 type Activity = {
     id: string;
@@ -12,49 +24,148 @@ type Activity = {
 };
 
 export function RecentActivities() {
-    // Mock data - replace with real API call
-    const activities: Activity[] = [
-        {
-            id: '1',
-            type: 'order',
-            message: 'Nguyễn Văn A đã tạo đơn hàng #HB-2024-001',
-            time: '5 phút trước',
-            icon: Package,
-            color: 'blue'
-        },
-        {
-            id: '2',
-            type: 'order',
-            message: 'Đã xác nhận đơn hàng #HB-2024-002',
-            time: '10 phút trước',
-            icon: CheckCircle2,
-            color: 'green'
-        },
-        {
-            id: '3',
-            type: 'payment',
-            message: 'Đã nhận thanh toán cọc 50% cho đơn #HB-2024-003',
-            time: '30 phút trước',
-            icon: DollarSign,
-            color: 'green'
-        },
-        {
-            id: '4',
-            type: 'alert',
-            message: 'Đơn #HB-2024-004 có vấn đề thanh toán',
-            time: '1 giờ trước',
-            icon: AlertCircle,
-            color: 'red'
-        },
-        {
-            id: '5',
-            type: 'production',
-            message: 'Hoàn thành sơn cho Resin Job #RJ-123',
-            time: '2 giờ trước',
-            icon: CheckCircle2,
-            color: 'purple'
+    const [activities, setActivities] = useState<Activity[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    async function loadActivities() {
+        if (!getAdminToken()) {
+            setLoading(false);
+            return;
         }
-    ];
+
+        try {
+            // Try to get audit logs, fallback to orders if not available
+            try {
+                const response = await adminFetch<{ data: AuditLog[] }>('/audit-logs?pageSize=10&sort=-createdAt');
+                const logs = response.data.slice(0, 5);
+
+                const activityList: Activity[] = logs.map((log) => {
+                    return parseAuditLog(log);
+                });
+
+                setActivities(activityList);
+            } catch (auditError) {
+                // Fallback to orders if audit logs not available
+                const ordersResponse = await adminFetch<{ data: any[] }>('/orders?pageSize=5&sort=-createdAt');
+                const orders = ordersResponse.data;
+
+                const activityList: Activity[] = orders.map((order, index) => {
+                    return {
+                        id: String(index),
+                        type: 'order',
+                        message: `Đơn hàng ${order.orderNumber || order.id} được tạo`,
+                        time: formatTime(order.createdAt),
+                        icon: ShoppingCart,
+                        color: 'blue'
+                    };
+                });
+
+                setActivities(activityList);
+            }
+        } catch (error) {
+            console.error('Failed to load activities:', error);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function parseAuditLog(log: AuditLog): Activity {
+        const action = log.action.toLowerCase();
+        const entityType = log.entityType?.toLowerCase() || '';
+
+        if (action.includes('create')) {
+            if (entityType.includes('order')) {
+                return {
+                    id: log.id,
+                    type: 'order',
+                    message: `Tạo đơn hàng #${log.entityId.substring(0, 8)}`,
+                    time: formatTime(log.createdAt),
+                    icon: ShoppingCart,
+                    color: 'blue'
+                };
+            } else if (entityType.includes('production') || entityType.includes('job')) {
+                return {
+                    id: log.id,
+                    type: 'production',
+                    message: `Tạo production job #${log.entityId.substring(0, 8)}`,
+                    time: formatTime(log.createdAt),
+                    icon: Package,
+                    color: 'purple'
+                };
+            }
+        }
+
+        if (action.includes('update')) {
+            if (action.includes('confirm')) {
+                return {
+                    id: log.id,
+                    type: 'order',
+                    message: `Xác nhận đơn hàng #${log.entityId.substring(0, 8)}`,
+                    time: formatTime(log.createdAt),
+                    icon: CheckCircle2,
+                    color: 'green'
+                };
+            } else if (action.includes('payment') || action.includes('paid')) {
+                return {
+                    id: log.id,
+                    type: 'payment',
+                    message: `Thanh toán cho đơn #${log.entityId.substring(0, 8)}`,
+                    time: formatTime(log.createdAt),
+                    icon: DollarSign,
+                    color: 'green'
+                };
+            } else if (action.includes('block') || action.includes('cancel')) {
+                return {
+                    id: log.id,
+                    type: 'alert',
+                    message: `Đơn #${log.entityId.substring(0, 8)} có vấn đề`,
+                    time: formatTime(log.createdAt),
+                    icon: AlertCircle,
+                    color: 'red'
+                };
+            }
+        }
+
+        // Default activity
+        return {
+            id: log.id,
+            type: 'order',
+            message: `${log.action} - ${entityType}`,
+            time: formatTime(log.createdAt),
+            icon: CheckCircle2,
+            color: 'blue'
+        };
+    }
+
+    function formatTime(dateStr: string): string {
+        const date = new Date(dateStr);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffMins = Math.floor(diffMs / 60000);
+
+        if (diffMins < 1) return 'Vừa xong';
+        if (diffMins < 60) return `${diffMins} phút trước`;
+        if (diffMins < 1440) return `${Math.floor(diffMins / 60)} giờ trước`;
+        return `${Math.floor(diffMins / 1440)} ngày trước`;
+    }
+
+    useEffect(() => {
+        void loadActivities();
+        window.addEventListener('admin:data-changed', loadActivities);
+        return () => window.removeEventListener('admin:data-changed', loadActivities);
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="dashboard-card">
+                <h2 className="card-title">Recent Activities</h2>
+                <div className="loading-skeleton">
+                    <div className="skeleton-bar" />
+                    <div className="skeleton-bar" />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="dashboard-card">
@@ -62,27 +173,33 @@ export function RecentActivities() {
             <p className="card-subtitle">Hoạt động gần đây</p>
 
             <div className="activity-timeline">
-                {activities.map((activity, index) => {
-                    const Icon = activity.icon;
-                    return (
-                        <div key={activity.id} className="activity-item">
-                            <div className="activity-timeline-line">
-                                <div className={`activity-icon activity-icon-${activity.color}`}>
-                                    <Icon size={14} />
+                {activities.length === 0 ? (
+                    <div className="empty-state">
+                        <p>Chưa có hoạt động</p>
+                    </div>
+                ) : (
+                    activities.map((activity, index) => {
+                        const Icon = activity.icon;
+                        return (
+                            <div key={activity.id} className="activity-item">
+                                <div className="activity-timeline-line">
+                                    <div className={`activity-icon activity-icon-${activity.color}`}>
+                                        <Icon size={14} />
+                                    </div>
+                                    {index < activities.length - 1 && <div className="timeline-connector" />}
                                 </div>
-                                {index < activities.length - 1 && <div className="timeline-connector" />}
-                            </div>
 
-                            <div className="activity-content">
-                                <p className="activity-message">{activity.message}</p>
-                                <div className="activity-time">
-                                    <Clock size={12} />
-                                    <span>{activity.time}</span>
+                                <div className="activity-content">
+                                    <p className="activity-message">{activity.message}</p>
+                                    <div className="activity-time">
+                                        <Clock size={12} />
+                                        <span>{activity.time}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })
+                )}
             </div>
         </div>
     );

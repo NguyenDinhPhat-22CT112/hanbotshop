@@ -42,28 +42,24 @@ export function QuickStats() {
                     label: 'Tổng sản phẩm',
                     value: String(products.meta?.total ?? 0),
                     icon: Package,
-                    trend: '+12% so với tháng trước',
                     color: 'blue'
                 },
                 {
                     label: 'Đơn hàng',
                     value: String(orders.meta?.total ?? 0),
                     icon: ShoppingCart,
-                    trend: '+8% tuần này',
                     color: 'green'
                 },
                 {
                     label: 'Khách hàng',
                     value: String(users.meta?.total ?? 0),
                     icon: Users,
-                    trend: '+23% tháng này',
                     color: 'purple'
                 },
                 {
                     label: 'Resin Production',
                     value: String(jobs.meta?.total ?? 0),
                     icon: Factory,
-                    trend: '15 đang xử lý',
                     color: 'orange'
                 }
             ]);
@@ -108,7 +104,6 @@ export function QuickStats() {
                         <div className="stat-content">
                             <p className="stat-label">{stat.label}</p>
                             <h3 className="stat-value">{stat.value}</h3>
-                            {stat.trend && <p className="stat-trend">{stat.trend}</p>}
                         </div>
                     </div>
                 );

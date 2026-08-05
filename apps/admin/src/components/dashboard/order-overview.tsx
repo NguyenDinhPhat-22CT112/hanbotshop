@@ -98,9 +98,6 @@ export function OrderOverview() {
                                 </span>
                                 <span className="status-count">{status.value} Orders</span>
                             </div>
-                            <span className="status-percentage">
-                                {status.percentage.toFixed(1)}%
-                            </span>
                         </div>
                         <div className="status-progress-bar">
                             <div
