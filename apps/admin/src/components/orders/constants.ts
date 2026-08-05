@@ -57,14 +57,14 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; border: s
 
     // Payment statuses
     UNPAID: { bg: '#FEE2E2', text: '#991B1B', border: '#FECACA' },
-    PARTIALLY_PAID: { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' },
-    DEPOSIT_PAID: { bg: '#D1FAE5', text: '#065F46', border: '#A7F3D0' }
+    PARTIALLY_PAID: { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' }
+    // Note: DEPOSIT_PAID already defined above in Order statuses section
 };
 
 export const STATUS_LABELS: Record<string, string> = {
     // Order statuses
     WAITING_DEPOSIT: 'Chờ đặt cọc',
-    DEPOSIT_PAID: 'Đã đặt cọc',
+    DEPOSIT_PAID: 'Đã thanh toán cọc', // Used for both Order Status and Payment Status
     WAITING_SECOND_PAYMENT: 'Chờ thanh toán còn lại',
     SECOND_PAYMENT_PAID: 'Đã thanh toán đủ',
 
@@ -87,10 +87,13 @@ export const STATUS_LABELS: Record<string, string> = {
     CANCELLED: 'Đã hủy',
     BLOCKED: 'Đã khóa',
 
-    // Payment
+    // Payment statuses (for paymentStatus field)
     UNPAID: 'Chưa thanh toán',
     PARTIALLY_PAID: 'Thanh toán một phần',
-    DEPOSIT_PAID: 'Đã thanh toán cọc',
+    // Note: DEPOSIT_PAID meaning depends on context:
+    // - As Order Status: "Đã đặt cọc" (order is in deposit-paid stage)
+    // - As Payment Status: "Đã thanh toán cọc" (payment reached deposit amount)
+    // We use the Order Status label above since it's defined first
 };
 
 export const RESIN_TIMELINE_STAGES = [

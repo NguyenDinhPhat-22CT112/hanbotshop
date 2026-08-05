@@ -261,6 +261,7 @@ export function OrdersAdminPanel() {
               <option value="">Tất cả</option>
               <option value="UNPAID">Chưa thanh toán</option>
               <option value="PARTIALLY_PAID">Thanh toán một phần</option>
+              <option value="DEPOSIT_PAID">Đã thanh toán cọc</option>
               <option value="PAID">Đã thanh toán</option>
             </select>
           </label>
