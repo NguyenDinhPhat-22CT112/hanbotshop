@@ -4,7 +4,6 @@ import { OrderOverview } from '../components/dashboard/order-overview';
 import { RecentOrders } from '../components/dashboard/recent-orders';
 import { RecentActivities } from '../components/dashboard/recent-activities';
 import { NotificationsWidget } from '../components/dashboard/notifications-widget';
-import { SystemHealth } from '../components/dashboard/system-health';
 
 export default function AdminHomePage() {
   return (
@@ -28,11 +27,6 @@ export default function AdminHomePage() {
           <RecentActivities />
         </div>
       </div>
-
-      {/* System Health */}
-      <section className="dashboard-section">
-        <SystemHealth />
-      </section>
     </main>
   );
 }
