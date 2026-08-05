@@ -32,7 +32,7 @@ export class PaymentService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService = { enqueue: async () => undefined } as unknown as NotificationsService
-  ) {}
+  ) { }
 
   async createCheckoutSession(actor: Actor, dto: CheckoutSessionDto) {
     return this.prisma.$transaction(
@@ -113,10 +113,10 @@ export class PaymentService {
     const payableStatuses: OrderStatus[] = type === OrderType.ORDER
       ? [OrderStatus.WAITING_DEPOSIT, OrderStatus.WAITING_SECOND_PAYMENT]
       : [
-          OrderStatus.PENDING_CONFIRMATION,
-          OrderStatus.CONFIRMED,
-          OrderStatus.WAITING_PAYMENT
-        ];
+        OrderStatus.PENDING_CONFIRMATION,
+        OrderStatus.CONFIRMED,
+        OrderStatus.WAITING_PAYMENT
+      ];
 
     if (!payableStatuses.includes(status)) {
       throw new BadRequestException('The order is not in a payable state.');
@@ -197,9 +197,20 @@ export class PaymentService {
         }
       });
       const paidAmount = payment.order.paidAmount.plus(payment.amount);
-      const orderPaymentStatus = paidAmount.greaterThanOrEqualTo(payment.order.total)
-        ? PaymentStatus.PAID
-        : PaymentStatus.PARTIALLY_PAID;
+
+      // Determine payment status based on amount paid
+      let orderPaymentStatus: PaymentStatus;
+      if (paidAmount.greaterThanOrEqualTo(payment.order.total)) {
+        orderPaymentStatus = PaymentStatus.PAID;
+      } else if (
+        payment.order.depositRequired.greaterThan(0) &&
+        paidAmount.greaterThanOrEqualTo(payment.order.depositRequired)
+      ) {
+        orderPaymentStatus = PaymentStatus.DEPOSIT_PAID;
+      } else {
+        orderPaymentStatus = PaymentStatus.PARTIALLY_PAID;
+      }
+
       const nextOrderStatus = this.orderStatusAfterPayment(
         payment.order.type,
         payment.order.status
@@ -315,9 +326,19 @@ export class PaymentService {
 
     const updatedPayment = await this.prisma.$transaction(async (tx) => {
       const paidAmount = order.paidAmount.plus(amount);
-      const orderPaymentStatus = paidAmount.greaterThanOrEqualTo(order.total)
-        ? PaymentStatus.PAID
-        : PaymentStatus.PARTIALLY_PAID;
+
+      // Determine payment status based on amount paid
+      let orderPaymentStatus: PaymentStatus;
+      if (paidAmount.greaterThanOrEqualTo(order.total)) {
+        orderPaymentStatus = PaymentStatus.PAID;
+      } else if (
+        order.depositRequired.greaterThan(0) &&
+        paidAmount.greaterThanOrEqualTo(order.depositRequired)
+      ) {
+        orderPaymentStatus = PaymentStatus.DEPOSIT_PAID;
+      } else {
+        orderPaymentStatus = PaymentStatus.PARTIALLY_PAID;
+      }
 
       await tx.order.update({
         where: { id: order.id },
@@ -494,10 +515,10 @@ export class PaymentService {
           order:
             eventType === PaymentEventType.PAYMENT_CONFIRMED
               ? {
-                  update: {
-                    paymentStatus: PaymentStatus.PAID
-                  }
+                update: {
+                  paymentStatus: PaymentStatus.PAID
                 }
+              }
               : undefined
         },
         include: this.paymentInclude()
@@ -636,9 +657,9 @@ export class PaymentService {
       order: {
         ...payment.order,
         total: payment.order.total.toString()
-        ,depositRequired: payment.order.depositRequired.toString()
-        ,secondPaymentRequired: payment.order.secondPaymentRequired?.toString() ?? '0'
-        ,paidAmount: payment.order.paidAmount.toString()
+        , depositRequired: payment.order.depositRequired.toString()
+        , secondPaymentRequired: payment.order.secondPaymentRequired?.toString() ?? '0'
+        , paidAmount: payment.order.paidAmount.toString()
       }
     };
   }

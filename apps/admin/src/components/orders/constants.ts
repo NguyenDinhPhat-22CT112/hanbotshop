@@ -57,7 +57,8 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; border: s
 
     // Payment statuses
     UNPAID: { bg: '#FEE2E2', text: '#991B1B', border: '#FECACA' },
-    PARTIALLY_PAID: { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' }
+    PARTIALLY_PAID: { bg: '#FEF3C7', text: '#92400E', border: '#FDE68A' },
+    DEPOSIT_PAID: { bg: '#D1FAE5', text: '#065F46', border: '#A7F3D0' }
 };
 
 export const STATUS_LABELS: Record<string, string> = {
@@ -89,6 +90,7 @@ export const STATUS_LABELS: Record<string, string> = {
     // Payment
     UNPAID: 'Chưa thanh toán',
     PARTIALLY_PAID: 'Thanh toán một phần',
+    DEPOSIT_PAID: 'Đã thanh toán cọc',
 };
 
 export const RESIN_TIMELINE_STAGES = [
