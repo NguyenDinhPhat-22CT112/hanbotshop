@@ -4,7 +4,8 @@ interface PaginationMeta {
     total: number;
     page: number;
     pageSize: number;
-    totalPages: number;
+    totalPages?: number; // Make optional
+    pageCount?: number;  // Support ListMeta format
 }
 
 interface ModernPaginationProps {
@@ -13,9 +14,13 @@ interface ModernPaginationProps {
 }
 
 export function ModernPagination({ meta, onPageChange }: ModernPaginationProps) {
-    if (!meta || meta.totalPages <= 1) return null;
+    if (!meta) return null;
 
-    const { page, pageSize, total, totalPages } = meta;
+    // Support both totalPages and pageCount
+    const totalPages = meta.totalPages || meta.pageCount || 1;
+    if (totalPages <= 1) return null;
+
+    const { page, pageSize, total } = meta;
     const startIndex = (page - 1) * pageSize + 1;
     const endIndex = Math.min(page * pageSize, total);
 
