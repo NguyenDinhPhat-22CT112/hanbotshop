@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { adminFetch, getAdminToken } from '../../lib/browser-api';
-import { buildQuery, type ListMeta } from '../list-pagination';
+import { buildQuery, type ListMeta } from '../ui/list-pagination';
 import { OrderToolbar } from './OrderToolbar';
 import { OrderTabs } from './OrderTabs';
 import { OrderFilters } from './OrderFilters';

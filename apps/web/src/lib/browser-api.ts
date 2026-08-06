@@ -119,6 +119,23 @@ export async function getAddresses() {
   return payload.data;
 }
 
+export async function createAddress(body: {
+  recipient: string;
+  phone: string;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  province?: string | null;
+  postalCode?: string | null;
+  countryCode?: string;
+  isDefault?: boolean;
+}) {
+  return apiFetch<Address>('/users/me/addresses', {
+    method: 'POST',
+    body: JSON.stringify(body)
+  });
+}
+
 export async function addCartItem(
   productId: string,
   variantId: string | null = null,
@@ -263,6 +280,11 @@ export type AccountOrder = {
   estimate: string;
   contact: string;
   shippingAddress: string;
+  tracking: {
+    carrier: string | null;
+    number: string | null;
+    link: string | null;
+  };
   items: {
     name: string;
     quantity: number;
@@ -325,6 +347,27 @@ export async function cancelOrder(id: string) {
   return mapOrder(payload);
 }
 
+function getTrackingLink(carrier: string | null, trackingNumber: string | null): string | null {
+  if (!carrier || !trackingNumber) return null;
+
+  const carrierLinks: Record<string, string> = {
+    'GHN': `https://donhang.ghn.vn/?order_code=${trackingNumber}`,
+    'Viettel Post': `https://viettelpost.com.vn/tra-cuu-hanh-trinh-don/?tracking=${trackingNumber}`,
+    'Viettel': `https://viettelpost.com.vn/tra-cuu-hanh-trinh-don/?tracking=${trackingNumber}`,
+    'J&T Express': `https://www.jtexpress.vn/tracking?billcode=${trackingNumber}`,
+    'J&T': `https://www.jtexpress.vn/tracking?billcode=${trackingNumber}`,
+    'GHTK': `https://khachhang.giaohangtietkiem.vn/web/guest/shipment/search?code=${trackingNumber}`,
+    'Ninja Van': `https://www.ninjavan.co/vi-vn/tracking?id=${trackingNumber}`,
+    'Ninja': `https://www.ninjavan.co/vi-vn/tracking?id=${trackingNumber}`,
+    'Best Express': `https://www.best-inc.vn/track?trackingNumber=${trackingNumber}`,
+    'Best': `https://www.best-inc.vn/track?trackingNumber=${trackingNumber}`,
+    'Kerry Express': `https://th.kerryexpress.com/en/track/?track=${trackingNumber}`,
+    'Kerry': `https://th.kerryexpress.com/en/track/?track=${trackingNumber}`
+  };
+
+  return carrierLinks[carrier] || null;
+}
+
 function mapOrder(order: ApiOrder, timeline?: ApiTimelineItem[]): AccountOrder {
   const trackingCopy = order.trackingNumber
     ? `${order.trackingCarrier ?? 'Đơn vị vận chuyển'}: ${order.trackingNumber}`
@@ -349,6 +392,11 @@ function mapOrder(order: ApiOrder, timeline?: ApiTimelineItem[]): AccountOrder {
     estimate: estimateForStatus(order.status, order.paymentStatus),
     contact: [order.recipientName, order.recipientPhone].filter(Boolean).join(' / ') || 'Chưa có thông tin liên hệ',
     shippingAddress: formatAddress(order.shippingAddress),
+    tracking: {
+      carrier: order.trackingCarrier || null,
+      number: order.trackingNumber || null,
+      link: getTrackingLink(order.trackingCarrier ?? null, order.trackingNumber ?? null)
+    },
     items: order.items.map((item) => ({
       name: item.productSnapshot?.name ?? 'Sản phẩm',
       quantity: item.quantity,

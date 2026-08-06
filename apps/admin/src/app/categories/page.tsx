@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { CategoriesPanel } from '../../components/categories-panel';
-import { TagsPanel } from '../../components/tags-panel';
+import { CategoriesPanel } from '../../components/categories/categories-panel';
+import { TagsPanel } from '../../components/categories/tags-panel';
 
 export default function AdminCategoriesPage({
   searchParams

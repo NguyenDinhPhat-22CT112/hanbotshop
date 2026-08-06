@@ -170,6 +170,84 @@ export function AccountOrderDetailClient({ id }: { id: string }) {
             </dl>
           </section>
 
+          {order.tracking.carrier && order.tracking.number ? (
+            <section className="detail-panel tracking-panel">
+              <h2>🚚 Thông Tin Vận Chuyển</h2>
+              <dl className="detail-list">
+                <div>
+                  <dt>Đơn Vị Vận Chuyển</dt>
+                  <dd>{order.tracking.carrier}</dd>
+                </div>
+                <div>
+                  <dt>Mã Vận Đơn</dt>
+                  <dd className="tracking-number">
+                    <span>{order.tracking.number}</span>
+                    <button
+                      className="copy-tracking-button"
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(order.tracking.number!);
+                        alert('Đã copy mã vận đơn!');
+                      }}
+                      title="Copy mã vận đơn"
+                    >
+                      📋
+                    </button>
+                  </dd>
+                </div>
+              </dl>
+              {order.tracking.link ? (
+                <a
+                  className="track-order-button"
+                  href={order.tracking.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  🔗 Tra Cứu Vận Đơn
+                </a>
+              ) : null}
+            </section>
+          ) : null}
+
+          {order.tracking.carrier && order.tracking.number ? (
+            <section className="detail-panel tracking-panel">
+              <h2>🚚 Thông Tin Vận Chuyển</h2>
+              <dl className="detail-list tracking-list">
+                <div>
+                  <dt>Đơn vị vận chuyển</dt>
+                  <dd className="tracking-carrier">{order.tracking.carrier}</dd>
+                </div>
+                <div>
+                  <dt>Mã vận đơn</dt>
+                  <dd className="tracking-number">
+                    <span>{order.tracking.number}</span>
+                    <button
+                      type="button"
+                      className="copy-button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(order.tracking.number!);
+                        alert('Đã copy mã vận đơn!');
+                      }}
+                      title="Copy mã vận đơn"
+                    >
+                      📋
+                    </button>
+                  </dd>
+                </div>
+              </dl>
+              {order.tracking.link ? (
+                <a
+                  href={order.tracking.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="tracking-link"
+                >
+                  🔗 Tra cứu vận đơn
+                </a>
+              ) : null}
+            </section>
+          ) : null}
+
           <section className="detail-panel actions-panel">
             {(
               order.type === 'ORDER'

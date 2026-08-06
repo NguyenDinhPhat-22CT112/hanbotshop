@@ -1,4 +1,4 @@
-import { AdminProductionDetail } from '../../../components/admin-production-detail';
+import { AdminProductionDetail } from '../../../components/production/admin-production-detail';
 
 export default function AdminProductionDetailPage({ params }: { params: { id: string } }) {
   return (

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { AdminChrome } from '../components/admin-chrome';
+import { AdminChrome } from '../components/chrome/admin-chrome';
 import './globals.css';
 
 export const metadata: Metadata = {

@@ -1,4 +1,4 @@
-import { AdminUserDetail } from '../../../components/admin-user-detail';
+import { AdminUserDetail } from '../../../components/users/admin-user-detail';
 
 export default function AdminUserDetailPage({ params }: { params: { id: string } }) {
   return (

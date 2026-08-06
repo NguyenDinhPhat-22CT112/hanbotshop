@@ -1,4 +1,4 @@
-import { ReportsPanel } from '../../components/reports-panel';
+import { ReportsPanel } from '../../components/reports/reports-panel';
 
 export default function AdminReportsPage() {
   return (

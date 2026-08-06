@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { TagsPanel } from '../../../components/tags-panel';
+import { TagsPanel } from '../../../components/categories/tags-panel';
 
 export default function AdminTagsPage() {
   return (

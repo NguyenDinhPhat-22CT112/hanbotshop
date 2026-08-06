@@ -1,4 +1,4 @@
-import { AdminOrderDetail } from '../../../components/admin-order-detail';
+import { AdminOrderDetail } from '../../../components/orders/admin-order-detail';
 
 export default function AdminOrderDetailPage({ params }: { params: { id: string } }) {
   return (

@@ -1,4 +1,4 @@
-import { AuditLogsPanel } from '../../components/audit-logs-panel';
+import { AuditLogsPanel } from '../../components/audit-logs/audit-logs-panel';
 
 export default function AdminAuditLogsPage() {
   return (

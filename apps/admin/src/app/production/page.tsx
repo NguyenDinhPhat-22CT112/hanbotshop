@@ -1,4 +1,4 @@
-import { ProductionAdminPanel } from '../../components/production-admin-panel';
+import { ProductionAdminPanel } from '../../components/production/production-admin-panel';
 
 export default function AdminProductionPage() {
   return (

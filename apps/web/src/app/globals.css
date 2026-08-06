@@ -6849,3 +6849,73 @@ a.order-card:hover {
     grid-template-columns: 1fr
   }
 }
+
+
+/* Tracking Panel */
+.tracking-panel {
+  border: 1px solid #e0e7ee;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8fafb, #ffffff);
+  padding: 20px;
+}
+
+.tracking-panel h2 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.tracking-number {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.copy-tracking-button {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #d8dde5;
+  border-radius: 8px;
+  background: #f8f9fb;
+  color: #495464;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  transition: all 150ms ease;
+}
+
+.copy-tracking-button:hover {
+  border-color: #d6382f;
+  background: #fff5f5;
+  transform: scale(1.05);
+}
+
+.copy-tracking-button:active {
+  transform: scale(0.95);
+}
+
+.track-order-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  background: #d6382f;
+  color: #ffffff;
+  padding: 0 20px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 200ms ease;
+}
+
+.track-order-button:hover {
+  background: #b92720;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(214, 56, 47, 0.3);
+}

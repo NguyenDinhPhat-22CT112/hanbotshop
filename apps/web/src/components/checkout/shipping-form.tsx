@@ -18,8 +18,10 @@ type ShippingFormProps = {
     isSubmitting: boolean;
     hasItems: boolean;
     message: string;
+    saveAddress: boolean;
     onFieldUpdate: (key: keyof CheckoutFields, value: string) => void;
     onAddressSelect: (id: string) => void;
+    onToggleSaveAddress: (checked: boolean) => void;
     onSubmit: () => void;
 };
 
@@ -31,8 +33,10 @@ export function ShippingForm({
     isSubmitting,
     hasItems,
     message,
+    saveAddress,
     onFieldUpdate,
     onAddressSelect,
+    onToggleSaveAddress,
     onSubmit
 }: ShippingFormProps) {
     return (
@@ -160,6 +164,22 @@ export function ShippingForm({
                         />
                     </div>
                 </div>
+
+                {selectedAddressId === '' && (
+                    <div className="form-field-checkbox">
+                        <input
+                            id="saveAddress"
+                            name="saveAddress"
+                            type="checkbox"
+                            checked={saveAddress}
+                            onChange={(event) => onToggleSaveAddress(event.target.checked)}
+                            className="form-checkbox"
+                        />
+                        <label htmlFor="saveAddress">
+                            Lưu địa chỉ vào tài khoản để dùng cho lần sau
+                        </label>
+                    </div>
+                )}
 
                 <div className="form-field-checkbox">
                     <input

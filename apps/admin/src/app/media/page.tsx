@@ -1,4 +1,4 @@
-import { MediaPanel } from '../../components/media-panel';
+import { MediaPanel } from '../../components/media/media-panel';
 
 export default function AdminMediaPage() {
   return (

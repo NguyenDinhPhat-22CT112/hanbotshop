@@ -1,4 +1,4 @@
-import { CatalogAdminPanel } from '../../components/catalog-admin-panel';
+import { CatalogAdminPanel } from '../../components/catalog/catalog-admin-panel';
 
 export default function AdminCatalogPage() {
   return (

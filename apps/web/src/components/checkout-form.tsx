@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { checkout, createPaymentSession, getAddresses, getCart, type Address } from '../lib/browser-api';
+import { checkout, createAddress, createPaymentSession, getAddresses, getCart, type Address } from '../lib/browser-api';
 import { calculateDepositRequired } from '../lib/checkout-utils';
 import { PaymentModal } from './bank-transfer-payment';
 import { ShippingForm } from './checkout/shipping-form';
@@ -42,6 +42,7 @@ export function CheckoutForm() {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [saveAddress, setSaveAddress] = useState(true);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const router = useRouter();
@@ -112,6 +113,34 @@ export function CheckoutForm() {
         }
       });
 
+      if (saveAddress) {
+        const alreadySaved = addresses.some(
+          (address) =>
+            address.recipient === fields.recipientName &&
+            address.phone === fields.recipientPhone &&
+            address.line1 === fields.line1 &&
+            address.city === fields.city
+        );
+
+        if (!alreadySaved) {
+          try {
+            await createAddress({
+              recipient: fields.recipientName,
+              phone: fields.recipientPhone,
+              line1: fields.line1,
+              line2: null,
+              city: fields.city,
+              province: fields.province || null,
+              postalCode: null,
+              countryCode: 'VN',
+              isDefault: addresses.length === 0
+            });
+          } catch {
+            // Không chặn đơn hàng nếu lưu địa chỉ gặp lỗi
+          }
+        }
+      }
+
       const createdNumbers = result.orders.map((order) => order.orderNumber).join(', ');
 
       // Prioritize ORDER type first (pre-order products with deposits)
@@ -165,8 +194,10 @@ export function CheckoutForm() {
             isSubmitting={isSubmitting}
             hasItems={!!cart?.items.length}
             message={message}
+            saveAddress={saveAddress}
             onFieldUpdate={updateField}
             onAddressSelect={selectAddress}
+            onToggleSaveAddress={setSaveAddress}
             onSubmit={submit}
           />
 

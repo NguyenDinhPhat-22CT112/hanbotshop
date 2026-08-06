@@ -1,4 +1,4 @@
-import { AdminProductEditor } from '../../../../components/admin-product-editor';
+import { AdminProductEditor } from '../../../../components/catalog/admin-product-editor';
 
 export default function AdminProductEditPage({ params }: { params: { id: string } }) {
   return (
